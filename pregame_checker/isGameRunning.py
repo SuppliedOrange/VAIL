@@ -20,7 +20,7 @@ with open(logPath, 'w'): pass
 def isRunning():
     for proc in psutil.process_iter(['name']):
         try:
-            if proc.info['name'].lower() == "valorant.exe":
+            if proc.info['name'].lower() == "notepad.exe":
                 print("valorant is running")
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -69,7 +69,11 @@ def create_client():
         print(e)
     
     client = Client(region=region)
-    client.activate()
+    try:
+        client.activate()
+    except:
+        logging.error("VALORANT isn't running")
+        print("VALORANT isn't running")
 
     return client 
 
