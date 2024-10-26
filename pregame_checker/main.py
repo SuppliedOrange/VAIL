@@ -118,7 +118,7 @@ def gui_app(queue):
     
     app = ctk.CTk()
     app.title("VAIL")
-    app.minsize(screenWidth/3, screenHeight/2.5)
+    app.minsize(screenWidth/3, screenHeight/2.2)
     app.configure(fg_color="#0F1923")
     
     app.grid_columnconfigure(0, weight=1)
@@ -336,8 +336,8 @@ def setup_tray_icon(queue):
         icon.stop()
 
     icon = pystray.Icon("VAIL", icon_image, menu=pystray.Menu(
-        pystray.MenuItem("Show GUI", show_gui),
-        pystray.MenuItem("Hide GUI", hide_gui),
+        pystray.MenuItem("Show", show_gui),
+        pystray.MenuItem("Hide", hide_gui),
         pystray.MenuItem("Enable", lambda: queue.put("enable")),
         pystray.MenuItem("Disable", lambda: queue.put("disable")),
         pystray.MenuItem("Quit", quit_all)
