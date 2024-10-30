@@ -61,6 +61,7 @@ def get_region():
     return region
 
 def create_client():
+    global client, region
 
     try:
         region = get_region()
@@ -81,10 +82,22 @@ def check_in_pregame(client: Client):
     try:            
         sessionState = client.fetch_presence(client.puuid)["sessionLoopState"]
 
-        if sessionState != "PREGAME": return
+        if sessionState != "PREGAME": return None
 
-        return True
+        return sessionState['ID']
     
     except Exception as e:
         logging.error(e)
         return None
+    
+def getEndpoint( matchID: str, client: Client):
+    try:
+
+        endpoint = f"https://glz-{client.region}-1.{client.shard}.a.pvp.net/pregame/v1/matches/{matchID}"
+
+        return endpoint
+
+    except:
+        print("ID not found?")
+        print(endpoint)
+
