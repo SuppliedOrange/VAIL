@@ -20,18 +20,17 @@ with open(logPath, 'w'): pass
 def isRunning():
     for proc in psutil.process_iter(['name']):
         try:
-            if proc.info['name'].lower() == "notepad.exe":
+            if proc.info['name'].lower() == "valorant.exe":
                 print("valorant is running")
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             print("Interesting error has occured")
             pass
-    print("valorant is not running")
+    print("isRunning: valorant is not running")
     return False
 
 def get_region():
     #Get the region code of the current game.
-
     region = None
 
     with open( os.path.join(os.getenv("LOCALAPPDATA"), R"VALORANT\Saved\Logs\ShooterGame.log"), "rb",) as f:
@@ -92,12 +91,10 @@ def check_in_pregame(client: Client):
     
 def getEndpoint( matchID: str, client: Client):
     try:
-
         endpoint = f"https://glz-{client.region}-1.{client.shard}.a.pvp.net/pregame/v1/matches/{matchID}"
-
         return endpoint
 
     except:
         print("ID not found?")
         print(endpoint)
-
+        return None
