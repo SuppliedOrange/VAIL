@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import axios from "axios";
+import verifyLocalCredentials from "../utility/verifyLocalCredentials";
 
 export default function Signup() {
     const [email, setEmail] = useState("");
@@ -9,12 +11,11 @@ export default function Signup() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [passwordError, setPasswordError] = useState("");
     const [confirmPasswordError, setConfirmPasswordError] = useState("");
+    const [error, setError] = useState(""); // State to handle server errors
 
-    function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        // Add logic for sign-up submission here
-        console.log("Username:", username, "Email:", email, "Password:", password);
-    }
+    verifyLocalCredentials().then((isLoggedIn) => {
+        if (isLoggedIn) { window.location.href = "/dashboard"; }
+    });
 
     function handleConfirmPasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
         const newConfirmPassword = e.target.value;
@@ -25,7 +26,6 @@ export default function Signup() {
             setConfirmPasswordError("");
         }
     }
-
 
     function validatePassword(password: string) {
         const minLength = 8;
@@ -59,6 +59,34 @@ export default function Signup() {
         setPasswordError(validationMessage);
     }
 
+    async function handleSubmit(e: React.FormEvent) {
+
+        e.preventDefault();
+        setError(""); // Clear previous errors
+
+        try {
+            const response = await axios.post(import.meta.env.VITE_WEBSERVER_ENDPOINT + "/create-account", {
+                username,
+                email,
+                password,
+                type: import.meta.env.VITE_DIAMNET_MODE
+            });
+
+            if (response.status === 200) {
+                localStorage.setItem("username", username);
+                localStorage.setItem("accessToken", response.data.accessToken);
+                window.location.href = "/";
+            }
+        } catch (err) {
+            console.log(err)
+            if (axios.isAxiosError(err) && err.response && err.response.data.error) {
+                setError(`[${err.response.data.errorCode}] ${err.response.data.error}` || "An error occurred during signup.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
+        }
+    }
+
     return (
         <>
         <Header title="VAIL"/>
@@ -72,6 +100,12 @@ export default function Signup() {
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
+                        {/* Toast */}
+                        {error && (
+                            <div className="mb-4 rounded-md bg-red-50 p-4 text-red-800 shadow">
+                                <p>{error}</p>
+                            </div>
+                        )}
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                                 Username
@@ -130,6 +164,7 @@ export default function Signup() {
                                 <p className="mt-2 text-sm text-red-600">{confirmPasswordError}</p>
                             )}
                         </div>
+
                         <button
                             type="submit"
                             className="flex w-full items-center justify-center rounded-md border border-transparent bg-red-500 px-8 py-3 text-base font-medium text-white hover:bg-red-600 md:px-10 md:py-4 md:text-lg"
@@ -143,9 +178,7 @@ export default function Signup() {
         </main>
 
         <Footer/>
-
         </>
-        
     );
 }
 

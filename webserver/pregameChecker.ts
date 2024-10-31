@@ -11,6 +11,7 @@ interface pregameProperties {
     authorization: string
     username: string
     matchID: string
+    playerID: string
     usersCollection: Collection<Document>
     pregameMatchesCollection: Collection<Document>,
 
@@ -31,7 +32,7 @@ async function fetchPregameMatch(
                 "X-Riot-ClientPlatform": clientPlatform,
                 "X-Riot-ClientVersion": clientVersion,
                 "X-Riot-Entitlements-JWT": entitlementsJWT,
-                "Authorization": `Bearer ${authorization}`
+                "Authorization": authorization
             }
         });
         
@@ -47,12 +48,14 @@ async function fetchPregameMatch(
         }
 
         else {
+
             return {
                 error: response.data,
                 code: `Code: ${response.status}, ${response.statusText}`
             }
+            
         }
-
+        
 }
 
 export default async function analyzePregame( properties: pregameProperties ) {
@@ -62,6 +65,7 @@ export default async function analyzePregame( properties: pregameProperties ) {
     const clientVersion = properties.clientVersion;
     const entitlementsJWT = properties.entitlementsJWT;
     const authToken = properties.authorization;
+    const playerID = properties.playerID;
 
     // Stuff to use for databases
     const username = properties.username;

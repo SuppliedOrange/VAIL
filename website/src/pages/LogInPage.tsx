@@ -1,22 +1,48 @@
 import { useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import axios from "axios";
+import verifyLocalCredentials from "../utility/verifyLocalCredentials";
 
 export default function Login() {
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [showTooltip, setShowTooltip] = useState(false);
+    const [error, setError] = useState(""); // State to handle server errors
+    const [showTooltip, setShowTooltip] = useState(false); // State to handle tooltip visibility
 
-    function handleSubmit(e: React.FormEvent) {
+    verifyLocalCredentials().then((isLoggedIn) => {
+        if (isLoggedIn) { window.location.href = "/dashboard"; }
+    });
+
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        // Add login logic here
-        console.log("Username:", username, "Password:", password);
+        setError(""); // Clear previous errors
+
+        try {
+            const response = await axios.post(import.meta.env.VITE_WEBSERVER_ENDPOINT + "/login", {
+                username,
+                password,
+                type: import.meta.env.VITE_DIAMNET_MODE
+            });
+
+            if (response.status === 200) {
+                localStorage.setItem("username", username);
+                localStorage.setItem("accessToken", response.data.accessToken);
+                window.location.href = "/";
+            }
+        } catch (err) {
+            console.log(err)
+            if (axios.isAxiosError(err) && err.response && err.response.data.error) {
+                setError(`[${err.response.data.errorCode}] ${err.response.data.error}` || "An error occurred during login.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
+        }
     }
 
     return (
         <>
-
         <Header title="VAIL"/>
 
         <main className="mx-auto mt-10 max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
@@ -29,6 +55,17 @@ export default function Login() {
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
+                        {/* Toast */}
+                        {error && (
+                            <div className="mb-4 rounded-md bg-red-50 p-4 text-red-800 shadow">
+                                <p>{error}</p>
+                            </div>
+                        )}
+                        {showTooltip && (
+                            <div className="mb-4 rounded-md bg-gray-50 p-4 text-gray-800 shadow">
+                                <p>This feature isn't implemented yet.</p>
+                            </div>
+                        )}
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                                 Username
@@ -63,13 +100,6 @@ export default function Login() {
                                 >
                                     Forgot Password?
                                 </button>
-                                {showTooltip && (
-                                    <div className="relative mt-1">
-                                        <div className="absolute z-10 w-48 rounded-md bg-gray-700 p-2 text-sm text-white shadow-lg">
-                                            This feature isn't implemented yet.
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                         <button
@@ -83,8 +113,7 @@ export default function Login() {
             </div>
         </main>
 
-        <Footer />
-
+        <Footer/>
         </>
     );
 }

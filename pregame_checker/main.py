@@ -1,3 +1,4 @@
+from time import sleep
 import customtkinter as ctk
 import isGameRunning
 from isGameRunning import logging
@@ -25,10 +26,12 @@ def resource_path(relative_path):
 # Global variables
 # Shared queue for inter-process communication
 queue = Queue()
-after_callbacks = []
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
 server_endpoint = "http://95.154.228.110:3001"
+
+username = None
+password = None
 
 # Get the AppData directory path
 appdataPath = os.getenv('APPDATA')
@@ -45,7 +48,7 @@ if not os.path.exists(vailDir):
 
 # global client object
 client = None
-pregame_iteration_timeout = 30000
+pregame_iteration_timeout = 12000
 
 
 def set_window_icon(window):
@@ -146,11 +149,15 @@ def logout():
     restart_app()
 
 
+
 def showLoginPopup():
-    global entry_username, entry_password
+    global username, password
+
     def on_login():
+
         username = entry_username.get().strip()
         password = entry_password.get()
+
         #mail = entry_mail.get()
         if username and password:
             print(f"Username: {username}, Password: {password}")
@@ -306,10 +313,15 @@ def tell_server_pregame_is_detected(client: Client):
     region: {region}
     playerID: {player ID}
     '''
-    playerID, headers, local_headers = client.__get_auth_headers()
+    global matchID
+    jsonData = read_json_file()
+    username = jsonData['username']
+    password = jsonData['password']
+    headers = client.headers
+    
     try:
-        requests.post(f"{server_endpoint}/check-pregame", json={
-            "playerID": playerID,
+        response = requests.post(f"{server_endpoint}/check-pregame", json={
+            "playerID": client.puuid,
             "matchID": matchID,
             "headers": headers,
             "clientPlatform": headers['X-Riot-ClientPlatform'],
@@ -318,11 +330,13 @@ def tell_server_pregame_is_detected(client: Client):
             "authToken": headers['Authorization'],
             "region": client.region,
             "endpoint": isGameRunning.getEndpoint(matchID, client),
-            "username": entry_username.get().strip(),
-            "accessToken": entry_password.get(),
+            "username": username,
+            "accessToken": password,
         })
         print("Sent request to server successfully")
+        print(response.json())
     except Exception as e:
+        print(e)
         print('dam we fucked up better handle this error ig')
 
 
@@ -561,6 +575,7 @@ def gui_app(queue):
                 client = isGameRunning.create_client()
             
             matchID = isGameRunning.check_in_pregame(client)
+            print(matchID)
 
             if matchID is not None:
                 print("Pregame detected")
@@ -626,15 +641,28 @@ def show_gui():
 
 
 if __name__ == "__main__":
+
     initialize_json_file()
+
     if loginState() == 1:
+
         print("Login state is not 0, continuing...")
-        if attempt_verifying_credentials():
-            print("Credentials verified, continuing...")
-        else:
-            print("Credentials not verified, logging out...")
-            writeLoginState(0)
-            showLoginPopup()
+
+        while True:
+
+            print("Attempting to verify credentials...")
+
+            try:
+                if attempt_verifying_credentials():
+                    print("Credentials verified, continuing...")
+                    break
+                else:
+                    print("Credentials not verified, logging out...")
+                    writeLoginState(0)
+                    showLoginPopup()
+            except:
+                sleep(10)
+
     else:
         print("Login state is 0, showing login popup...")
         showLoginPopup()

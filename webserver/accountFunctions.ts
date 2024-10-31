@@ -28,12 +28,18 @@ export async function verifyAuthentication(properties: Pick<User, "username" | "
         return {
             success: true,
             public_key: user.public_key || "",
+            username: properties.username,
+            type: user.type,
+            email: user.email,
+            diamClaimable: user.diamClaimable,
         }
-
     }
 
     catch (e) {
-        throw new errors.InternalServerError(e, "Internal server error");
+        if (e instanceof errors.BaseError) {
+            throw e;
+        }
+        else throw new errors.InternalServerError(e, "Internal server error");
     }
 
 }
@@ -51,7 +57,7 @@ export async function createAccount(properties: Omit<User, "public_key" | "priva
                 {"email": properties.email}]
             }
         );
-        if (similarAccounts && similarAccounts.length > 1) {
+        if (similarAccounts) {
             throw new errors.UserError(null, "Username or email already exists");
         }
 
@@ -88,8 +94,46 @@ export async function createAccount(properties: Omit<User, "public_key" | "priva
 
     }
     catch (e) {
-        throw new errors.InternalServerError(e, "Internal server error");
+        if (e instanceof errors.BaseError) {
+            throw e;
+        }
+        else throw new errors.InternalServerError(e, "Internal server error");
     }
+}
+
+export async function updatePublicKey(properties: Pick<User, "username" | "encoded_password"> & { newPublicKey: string }, usersCollection: Collection<Document>) {
+
+    try {
+
+        console.log('Received request to update public key');
+
+        const user = await usersCollection.findOne<User>({
+            "username": properties.username,
+            "encoded_password": properties.encoded_password
+        });
+
+        if (!user) {
+            throw new errors.UserError(null, "Username or Password is incorrect");
+        }
+
+        await usersCollection.updateOne({"username": properties.username}, {$set: {"public_key": properties.newPublicKey}});
+
+        return {
+            success: true,
+            public_key: properties.newPublicKey,
+            username: properties.username,
+            accessToken: properties.encoded_password
+        }
+
+    }
+
+    catch (e) {
+        if (e instanceof errors.BaseError) {
+            throw e;
+        }
+        else throw new errors.InternalServerError(e, "Internal server error");
+    }
+
 }
 
 export async function loginAccount(properties: Pick<User, "username" | "encoded_password">, usersCollection: Collection<Document>) {
@@ -110,12 +154,17 @@ export async function loginAccount(properties: Pick<User, "username" | "encoded_
         return {
             success: true,
             public_key: user.public_key || "",
+            username: properties.username,
+            accessToken: properties.encoded_password
         }
 
     }
 
     catch (e) {
-        throw new errors.InternalServerError(e, "Internal server error");
+        if (e instanceof errors.BaseError) {
+            throw e;
+        }
+        else throw new errors.InternalServerError(e, "Internal server error");
     }
 
 }
@@ -245,7 +294,9 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
         }
     } catch (e) {
         console.log(e);
-        throw new errors.InternalServerError(`Internal server error: ${e}`);
+        if (e instanceof errors.BaseError) {
+            throw e;
+        } else throw new errors.InternalServerError(`Internal server error: ${e}`);
     }
 }
 

@@ -7,6 +7,7 @@ import * as accountFunctions from './accountFunctions';
 import * as errors from "./Errors"
 import sha256 from 'sha256';
 import analyzePregame from './pregameChecker';
+import User from './User';
 
 configDotenv({path: ".env"});
 
@@ -16,6 +17,7 @@ const client = new MongoClient(process.env.MONGODB_URI as string);
 const database = client.db("diam");
 const usersCollection = database.collection("users");
 const pregameMatchesCollection = database.collection("pregameMatches");
+const transactionCollection = database.collection("transactions");
 
 // Create the express server
 const app = express();
@@ -56,13 +58,15 @@ app.post('/create-account', async function (req, res) {
             }
         }
 
+        const lowerCaseUsername = username.toLowerCase();
+
         // password = sha256(username + password)
-        const encoded_password = sha256(username + password);
+        const encoded_password = sha256(lowerCaseUsername + password);
 
         try {
 
             const accountDetails = await accountFunctions.createAccount({
-                username,
+                username: lowerCaseUsername,
                 encoded_password,
                 email,
                 type,
@@ -89,6 +93,57 @@ app.post('/create-account', async function (req, res) {
 
 });
 
+//@ts-expect-error Unsure why this happens
+app.post('/verify-authentication', async function (req, res) {
+
+        console.log('Received request to verify authentication');
+    
+        if (!req.body.username || !req.body.accessToken) {
+            res.status(400);
+            return res.send({
+                error: "Malformed request"
+            });
+        }
+    
+        const username = req.body.username;
+        const accessToken = req.body.accessToken;
+    
+        try {
+    
+            const details = await accountFunctions.verifyAuthentication({
+                username: username,
+                encoded_password: accessToken
+            }, usersCollection);
+
+            res.status(200);
+            res.send(details);
+    
+        }
+    
+        catch (error) {
+    
+            if (error instanceof errors.BaseError) {
+                res.status(error.errorCode);
+                return res.send({
+                    name: error.name,
+                    error: error.message,
+                    cause: error.cause,
+                    errorCode: error.errorCode
+                });
+            }
+    
+            else {
+                res.status(500);
+                return res.send({
+                    error: "Internal server error",
+                    cause: error
+                });
+            }
+    
+        }
+    
+});
+
 // @ts-expect-error Unsure why this happens
 app.post('/check-pregame', async function (req, res) {
 
@@ -107,6 +162,9 @@ app.post('/check-pregame', async function (req, res) {
      */
 
     // Ensure above properties exist
+
+    console.log('Received request to check pregame');
+    console.log(req.body);
 
     if (
         !req.body.username ||
@@ -171,6 +229,7 @@ app.post('/check-pregame', async function (req, res) {
     const entitlementsJWT = req.body.entitlementsJWT;
     const authToken = req.body.authToken;
     const matchID = req.body.matchID;
+    const playerID = req.body.playerID;
 
     // check if the matchID is already in pregameMatchesCollection
     const match = await pregameMatchesCollection.findOne({ matchID: matchID, username: username });
@@ -204,6 +263,7 @@ app.post('/check-pregame', async function (req, res) {
             authorization: authToken,
             username,
             matchID,
+            playerID,
             usersCollection,
             pregameMatchesCollection
         });
@@ -280,13 +340,34 @@ app.get('/check-admin-account', async function (req, res) {
     
 });
 
+//@ts-expect-error Unsure why this happens
 app.post('/reward-user', async function (req, res) {
 
     try {
-        const result = accountFunctions.transferFromAdminTo(req.body, usersCollection);
+
+        const toUsername = req.body.toUser;
+
+        if (!toUsername) {
+            res.status(400);
+            return res.send({
+                error: "Malformed request"
+            });
+        }
+
+        const toUser = await usersCollection.findOne<User>({ username: toUsername });
+        
+        if (!toUser) {
+            res.status(404);
+            return res.send({
+                error: "User not found"
+            });
+        }
+
+        const result = accountFunctions.transferFromAdminTo(toUser, usersCollection);
+
         res.status(200);
         res.send(result);
-
+        
     } catch (error) {
         console.error('Error in make-payment:', error);
         res.status(500).json({ error: error.message });

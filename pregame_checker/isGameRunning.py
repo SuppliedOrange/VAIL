@@ -79,11 +79,10 @@ def create_client():
 
 def check_in_pregame(client: Client):
     try:            
-        sessionState = client.fetch_presence(client.puuid)["sessionLoopState"]
-
-        if sessionState != "PREGAME": return None
-
-        return sessionState['ID']
+        sessionState = client.fetch_presence(client.puuid)
+        if sessionState["sessionLoopState"] != "PREGAME": return None
+        matchID = client.pregame_fetch_match()["ID"]
+        return matchID
     
     except Exception as e:
         logging.error(e)
