@@ -152,7 +152,6 @@ app.post('/check-pregame', async function (req, res) {
 
     }
 
-
     if (
         !req.body.endpoint ||
         !req.body.clientPlatform ||
@@ -222,7 +221,7 @@ app.post('/check-pregame', async function (req, res) {
 //@ts-expect-error Unsure why this happens
 app.post('/login', async function (req, res) {
     
-        if (!req.body.username || !req.body.encoded_password) {
+        if (!req.body.username || !req.body.password) {
             res.status(400);
             return res.send({
                 error: "Malformed request"
@@ -230,7 +229,9 @@ app.post('/login', async function (req, res) {
         }
     
         const username = req.body.username;
-        const encoded_password = req.body.encoded_password;
+        const password = req.body.password;
+
+        const encoded_password = sha256(username + password);
     
         try {
             const accountDetails = await accountFunctions.loginAccount({
