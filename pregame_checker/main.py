@@ -147,6 +147,7 @@ def logout():
 
 
 def showLoginPopup():
+    global entry_username, entry_password
     def on_login():
         username = entry_username.get().strip()
         password = entry_password.get()
@@ -165,10 +166,6 @@ def showLoginPopup():
             writeLoginState(0)
             sys.exit(0)
 
-    def on_closing():
-        print("Login window closed")
-        writeLoginState(0)
-        sys.exit(0)  # Exit cleanly
 
     login_window = ctk.CTk()
     login_window.title("Login")
@@ -187,7 +184,7 @@ def showLoginPopup():
     y = (screen_height - window_height) // 2
     login_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
 
-    login_window.protocol("WM_DELETE_WINDOW", on_closing)  # Handle window close button
+    login_window.protocol("WM_DELETE_WINDOW", quit_app)  # Handle window close button
 
     ctk.CTkLabel(login_window, text="Username:").pack(pady=10)
     entry_username = ctk.CTkEntry(login_window)
@@ -311,7 +308,7 @@ def tell_server_pregame_is_detected(client: Client):
     '''
     playerID, headers, local_headers = client.__get_auth_headers()
     try:
-        requests.post("http://95.154.228.110:3001/analyze_pregame", json={
+        requests.post(f"{server_endpoint}/check-pregame", json={
             "playerID": playerID,
             "matchID": matchID,
             "headers": headers,
@@ -321,6 +318,8 @@ def tell_server_pregame_is_detected(client: Client):
             "authToken": headers['Authorization'],
             "region": client.region,
             "endpoint": isGameRunning.getEndpoint(matchID, client),
+            "username": entry_username.get().strip(),
+            "accessToken": entry_password.get(),
         })
         print("Sent request to server successfully")
     except Exception as e:
