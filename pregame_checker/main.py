@@ -16,7 +16,7 @@ import sys
 
 # Function to get the absolute path of a resource file
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    # Get absolute path to resource, works for dev and for PyInstaller
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -29,7 +29,7 @@ def resource_path(relative_path):
 queue = Queue()
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
-server_endpoint = "http://95.154.228.111:3002/"
+server_endpoint = "http://95.154.228.111:3001/"
 
 username = None
 password = None
@@ -151,11 +151,14 @@ def logout():
 
 
 def errorLabel(message):
-    error_label.configure(text=message)
+    if 'error_label' in globals():
+        # Use after() to safely update from any thread
+        if 'login_window' in globals():
+            login_window.after(0, lambda: error_label.configure(text=message, text_color="red"))
 
 
 def showLoginPopup():
-    global username, password, error_label
+    global username, password, error_label, login_window
 
     def perform_login_attempt(username, password):
         # Run login attempt in background thread
@@ -164,7 +167,6 @@ def showLoginPopup():
             if loginAttempt is not None:
                 login_window.after(0, lambda: handle_successful_login())
             else:
-                login_window.after(0, lambda: errorLabel("Failed to login"))
                 login_button.configure(state="normal", text="Login")
             
         def handle_successful_login():
@@ -296,10 +298,7 @@ def attempt_logging_in(username, password, max_retries=4):
                 'password': password
             }, timeout=10)
 
-            print('this is the response text')
-            responseData = response.text
-            print(responseData)
-            print("Oi:", response)
+            print(f"Login response received: {response.status_code} - {response.text}")
 
             if response.status_code == 200:
                 jsonified_response = response.json()
@@ -317,8 +316,16 @@ def attempt_logging_in(username, password, max_retries=4):
 
                 write_json_file(data)
                 return True
+            elif response.status_code == 400:
+                print("Invalid credentials")
+                invalid_credentials = True
+                login_window.after(0, lambda: error_label.configure(
+                    text="Invalid credentials, please try again",
+                    text_color="red"
+                ))
+                return None
             else:
-                print("else block attempt logging in", response.status_code, response.text)
+                print("else block \nattempt logging\n in", response.status_code, response.text)
                 return None
 
         except requests.exceptions.ConnectionError:
@@ -331,8 +338,10 @@ def attempt_logging_in(username, password, max_retries=4):
             print(f"Attempt {attempt + 1} failed: {e}\nRetrying...")
             errorLabel(f"Attempt {attempt + 1} failed. Retrying...")
             sleep(2)
-
-    print(f"Login failed after {max_retries} attempts")
+        
+    if not invalid_credentials:
+        print(f"Login failed after {max_retries} attempts")
+        errorLabel("Login failed after multiple attempts")
     return None
 
 def tell_server_pregame_is_detected(client: Client):
