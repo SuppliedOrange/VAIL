@@ -29,7 +29,7 @@ def resource_path(relative_path):
 queue = Queue()
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
-server_endpoint = "http://95.154.228.111:3001/"
+server_endpoint = "http://95.154.228.111:3002/"
 
 username = None
 password = None
@@ -152,7 +152,6 @@ def logout():
 
 def errorLabel(message):
     error_label.configure(text=message)
-    error_label.update_idletasks()
 
 
 def showLoginPopup():
@@ -166,6 +165,7 @@ def showLoginPopup():
                 login_window.after(0, lambda: handle_successful_login())
             else:
                 login_window.after(0, lambda: errorLabel("Failed to login"))
+                login_button.configure(state="normal", text="Login")
             
         def handle_successful_login():
             writeLoginState(1)
@@ -318,7 +318,7 @@ def attempt_logging_in(username, password, max_retries=4):
                 write_json_file(data)
                 return True
             else:
-                print(response.status_code, response.text)
+                print("else block attempt logging in", response.status_code, response.text)
                 return None
 
         except requests.exceptions.ConnectionError:
