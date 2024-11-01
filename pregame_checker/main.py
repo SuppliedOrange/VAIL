@@ -6,6 +6,7 @@ import os
 import requests
 from valclient import Client
 from multiprocessing import Process, Queue
+import threading
 import pystray
 from PIL import Image, ImageTk
 from screeninfo import get_monitors
@@ -18,7 +19,7 @@ def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     except Exception:
         base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     return os.path.join(base_path, relative_path)
@@ -28,7 +29,7 @@ def resource_path(relative_path):
 queue = Queue()
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
-server_endpoint = "http://95.154.228.110:3001"
+server_endpoint = "http://95.154.228.111:3001/"
 
 username = None
 password = None
@@ -64,7 +65,7 @@ def set_window_icon(window):
             
             print(f"Icon set successfully from: {icon_path}")
         except Exception as e:
-            print(f"Error setting icon: {e}")
+            print(f"Failed to set window icon: {e}")
     else:
         print(f"Icon not found at: {icon_path}")
 
@@ -149,40 +150,54 @@ def logout():
     restart_app()
 
 
+def errorLabel(message):
+    error_label.configure(text=message)
+    error_label.update_idletasks()
+
 
 def showLoginPopup():
-    global username, password
+    global username, password, error_label
+
+    def perform_login_attempt(username, password):
+        # Run login attempt in background thread
+        def login_thread():
+            loginAttempt = attempt_logging_in(username, password)
+            if loginAttempt is not None:
+                login_window.after(0, lambda: handle_successful_login())
+            else:
+                login_window.after(0, lambda: errorLabel("Failed to login"))
+            
+        def handle_successful_login():
+            writeLoginState(1)
+            login_window.destroy()
+
+        threading.Thread(target=login_thread, daemon=True).start()
 
     def on_login():
-
         username = entry_username.get().strip()
         password = entry_password.get()
 
-        #mail = entry_mail.get()
         if username and password:
+            # Disable login button and show loading state
+            login_button.configure(state="disabled", text="Logging in...")
+            error_label.configure(text="Attempting to login...")
             print(f"Username: {username}, Password: {password}")
-            login_logic(username, password, login_window)
-            loginAttempt = attempt_logging_in(username, password)
-            if loginAttempt is not None:
-                login_window.destroy()
-                writeLoginState(1)
-            else:
-                error_label.configure(text="Login failed, please try again")
+            perform_login_attempt(username, password)
         else:
-            print("Login cancelled")
-            writeLoginState(0)
-            sys.exit(0)
+            errorLabel("Username and password required")
 
+    def on_window_close():
+        print("Login cancelled")
+        writeLoginState(0)
+        login_window.destroy()
+        sys.exit(0)
 
     login_window = ctk.CTk()
     login_window.title("Login")
 
     set_window_icon(login_window)
 
-    error_label = ctk.CTkLabel(login_window, text="", text_color="red")
-    error_label.pack(pady=5)
-
-    # window settings
+    # Window settings
     window_width = screenWidth // 3
     window_height = screenHeight // 3
     screen_width = login_window.winfo_screenwidth()
@@ -191,7 +206,10 @@ def showLoginPopup():
     y = (screen_height - window_height) // 2
     login_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
 
-    login_window.protocol("WM_DELETE_WINDOW", quit_app)  # Handle window close button
+    login_window.protocol("WM_DELETE_WINDOW", on_window_close)
+
+    error_label = ctk.CTkLabel(login_window, text="", text_color="red")
+    error_label.pack(pady=5)
 
     ctk.CTkLabel(login_window, text="Username:").pack(pady=10)
     entry_username = ctk.CTkEntry(login_window)
@@ -201,14 +219,10 @@ def showLoginPopup():
     entry_password = ctk.CTkEntry(login_window, show='*')
     entry_password.pack(pady=10)
 
-    """ ctk.CTkLabel(login_window, text="Mail:").pack(pady=10)
-    entry_mail = ctk.CTkEntry(login_window, show='*')
-    entry_mail.pack(pady=10)"""
-
-    ctk.CTkButton(login_window, text="Login", command=on_login).pack(pady=20)
+    login_button = ctk.CTkButton(login_window, text="Login", command=on_login)
+    login_button.pack(pady=20)
 
     login_window.mainloop()
-
 
 def enableButton():
     queue.put("enable")
@@ -253,55 +267,73 @@ def attempt_verifying_credentials():
     username = data['username']
     encoded_password = data['password']
 
-    response = requests.post(f"{server_endpoint}/verify-authentication", json={
-        'username': username,
-        'accessToken': encoded_password
-    })
-
-    if response.status_code == 200:
-        return True
-    else:
-        print(response.status_code, response.text)
-        return False
-
-                             
-def attempt_logging_in(username, password):
     try:
-        print('sending request')
-
-        response = requests.post(f"{server_endpoint}/login", json={
+        response = requests.post(f"{server_endpoint}/verify-authentication", json={
             'username': username,
-            'password': password
-        })
-
-        print('this is the response text')
-        responseData = response.text
-        print(responseData)
-        print("Oi:", response)
+            'accessToken': encoded_password
+        }, timeout = 10)
 
         if response.status_code == 200:
-            jsonified_response = response.json()
-            username = jsonified_response['username']
-            encoded_password = jsonified_response['accessToken']
-            credentials = {"username": username, "encoded_password": encoded_password}
-
-            data = read_json_file()
-            if 'username' not in data or 'password' not in data:
-                data['username'] = credentials['username']
-                data['password'] = credentials['encoded_password']
-                print(data)
-            else:
-                print("Username and password already exist in file")
-
-            write_json_file(data)
             return True
         else:
             print(response.status_code, response.text)
-            return None
+            return False
+    except requests.exceptions.ConnectionError:
+        print("Connection error. Unable to reach the server.")
+    except requests.exceptions.Timeout:
+        print("Request timed out. The server may be unavailable.")
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
 
-    except Exception as e:
-        print(f"Error during login attempt: {e}")
-        return None
+                             
+def attempt_logging_in(username, password, max_retries=4):
+    for attempt in range(max_retries):
+        try:
+            print(f"Attempt {attempt + 1} of {max_retries}: Sending login request")
+
+            response = requests.post(f"{server_endpoint}/login", json={
+                'username': username,
+                'password': password
+            }, timeout=10)
+
+            print('this is the response text')
+            responseData = response.text
+            print(responseData)
+            print("Oi:", response)
+
+            if response.status_code == 200:
+                jsonified_response = response.json()
+                username = jsonified_response['username']
+                encoded_password = jsonified_response['accessToken']
+                credentials = {"username": username, "encoded_password": encoded_password}
+
+                data = read_json_file()
+                if 'username' not in data or 'password' not in data:
+                    data['username'] = credentials['username']
+                    data['password'] = credentials['encoded_password']
+                    print(data)
+                else:
+                    print("Username and password already exist in file")
+
+                write_json_file(data)
+                return True
+            else:
+                print(response.status_code, response.text)
+                return None
+
+        except requests.exceptions.ConnectionError:
+            print(f"Attempt {attempt + 1} failed: Connection error.\nRetrying...")
+            errorLabel(f"Attempt {attempt + 1} failed: Connection error. Retrying...")
+        except requests.exceptions.Timeout:
+            print(f"Attempt {attempt + 1} failed: Request timed out.Retrying...")
+            errorLabel(f"Attempt {attempt + 1} failed: Request timed error.Retrying...")
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}\nRetrying...")
+            errorLabel(f"Attempt {attempt + 1} failed. Retrying...")
+            sleep(2)
+
+    print(f"Login failed after {max_retries} attempts")
+    return None
 
 def tell_server_pregame_is_detected(client: Client):
     '''
@@ -343,7 +375,7 @@ def tell_server_pregame_is_detected(client: Client):
 def login_logic(username, password, login_popup):
     loginAttempt = attempt_logging_in(username, password)
     if loginAttempt is None:
-        print('error, do this. error message')
+        print('login attempt failed')
     else:
         print(f"Attempting to login with username: {username}, password: {password}")
 
@@ -640,18 +672,14 @@ def show_gui():
     gui_process.start()
 
 
-if __name__ == "__main__":
-
+def main():
     initialize_json_file()
-
+    
     if loginState() == 1:
 
         print("Login state is not 0, continuing...")
-
         while True:
-
             print("Attempting to verify credentials...")
-
             try:
                 if attempt_verifying_credentials():
                     print("Credentials verified, continuing...")
@@ -660,8 +688,11 @@ if __name__ == "__main__":
                     print("Credentials not verified, logging out...")
                     writeLoginState(0)
                     showLoginPopup()
-            except:
-                sleep(10)
+            except Exception as e:
+                print(f"An error occurred while verifying credentials: {e}")
+                sleep(2)  # Retry after a short delay
+                sleep(10) 
+
 
     else:
         print("Login state is 0, showing login popup...")
@@ -669,13 +700,21 @@ if __name__ == "__main__":
 
     gui_process = Process(target=gui_app, args=(queue,), name="GUI")
     tray_process = Process(target=setup_tray_icon, args=(queue,), name="pysTray")
-    
-    gui_process.start()
-    tray_process.start()
     try:
-        gui_process.join()
+        gui_process.start()
+        tray_process.start()
+    except Exception as e:
+        print(f"Failed to start processes: {e}")
+        sys.exit(1)
+
+    try:
+        tray_process.terminate()
+        tray_process.join()
     except KeyboardInterrupt:
         print("Shutting down...")
     finally:
         tray_process.terminate()
         tray_process.join()
+
+if __name__ == "__main__":
+    main()

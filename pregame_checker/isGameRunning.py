@@ -74,6 +74,7 @@ def create_client():
     except:
         logging.error("VALORANT isn't running")
         print("VALORANT isn't running")
+        return None
 
     return client 
 
