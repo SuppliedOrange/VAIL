@@ -49,7 +49,7 @@ if not os.path.exists(vailDir):
 
 # global client object
 client = None
-pregame_iteration_timeout = 12000
+pregame_iteration_timeout = 20000
 
 
 def set_window_icon(window):
@@ -375,9 +375,17 @@ def tell_server_pregame_is_detected(client: Client):
             "endpoint": isGameRunning.getEndpoint(matchID, client),
             "username": username,
             "accessToken": password,
-        })
+        },
+        timeout=15)
+        
         print("Sent request to server successfully")
-        print(response.json())
+
+        print (response.json())
+
+        if 'error' in response.json():
+            if response.json()['error'] == "Match already checked":
+                sleep(40)
+
     except Exception as e:
         print(e)
         print('dam we fucked up better handle this error ig')

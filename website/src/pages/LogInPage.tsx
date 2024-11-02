@@ -5,7 +5,6 @@ import axios from "axios";
 import verifyLocalCredentials from "../utility/verifyLocalCredentials";
 
 export default function Login() {
-
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState(""); // State to handle server errors
@@ -50,20 +49,12 @@ export default function Login() {
                 <h1 className="text-8xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-9xl">
                     <span className="block">LOG IN</span>
                 </h1>
-                <p className="mt-3 text-base text-gray-700 sm:mx-auto sm:mt-5 sm:max-w-xl sm:text-lg md:mt-5 md:text-xl lg:mx-0">
-                    Access the {colourFirstLetter("VAIL  +Platform", "text-red-500")}
-                </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                     <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
                         {/* Toast */}
                         {error && (
                             <div className="mb-4 rounded-md bg-red-50 p-4 text-red-800 shadow">
                                 <p>{error}</p>
-                            </div>
-                        )}
-                        {showTooltip && (
-                            <div className="mb-4 rounded-md bg-gray-50 p-4 text-gray-800 shadow">
-                                <p>This feature isn't implemented yet.</p>
                             </div>
                         )}
                         <div>
@@ -91,7 +82,7 @@ export default function Login() {
                                 required
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                             />
-                            <div className="mt-2 text-sm text-gray-500">
+                            <div className="relative mt-2 text-sm text-gray-500">
                                 <button
                                     type="button"
                                     onMouseEnter={() => setShowTooltip(true)}
@@ -100,6 +91,11 @@ export default function Login() {
                                 >
                                     Forgot Password?
                                 </button>
+                                {showTooltip && (
+                                    <div className="absolute left-0 mt-2 w-48 rounded-md bg-gray-800 p-2 text-white shadow-lg">
+                                        This feature isn't implemented yet.
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <button
@@ -116,13 +112,4 @@ export default function Login() {
         <Footer/>
         </>
     );
-}
-
-function colourFirstLetter(text: string, color: string) {
-    return text.split('+').map((word, index) => (
-        <span key={index}>
-            <span className={`${color} font-semibold`}>{word[0]}</span>
-            {word.slice(1)}
-        </span>
-    ));
 }

@@ -11,7 +11,7 @@ export interface PregameMatch {
 
 export interface PregameMatchCheckResult {
 
-    result: { [key: string]: any },
+    result: { [key: string]: unknown },
     time: number,
     success: boolean
 

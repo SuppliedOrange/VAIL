@@ -1,18 +1,36 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import {configDotenv} from "dotenv"
+import { configDotenv } from "dotenv";
 import { MongoClient } from 'mongodb';
 import * as accountFunctions from './accountFunctions';
-import * as errors from "./Errors"
+import * as errors from "./Errors";
 import sha256 from 'sha256';
 import analyzePregame from './pregameChecker';
 import User from './User';
+import winston from 'winston';
+import { PregameMatch } from './PregameMatch';
 
-configDotenv({path: ".env"});
+// Configure dotenv
+configDotenv({ path: ".env" });
+
+// Configure winston
+const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(({ level, message, label, timestamp }) => {
+            return `${timestamp} [${level}]: ${message}`;
+        })
+    ),
+    transports: [
+        new winston.transports.Console({}),
+        new winston.transports.File({ filename: 'webserver.log', options: {  } })
+    ]
+});
 
 // Create a mongodb client
-console.log(process.env.MONGODB_URI);
+logger.info('Initializing MongoDB client with URI', { uri: process.env.MONGODB_URI });
 const client = new MongoClient(process.env.MONGODB_URI as string);
 const database = client.db("diam");
 const usersCollection = database.collection("users");
@@ -25,237 +43,130 @@ const port = 3001;
 app.use(bodyParser.json());
 app.use(cors());
 
-// Create an aurora server
-// const server = new Aurora.Server("https://diamtestnet.diamcircle.io/");
-
-//@ts-expect-error Unsure why this happens
+// @ts-expect-error unsure why this happens
 app.post('/create-account', async function (req, res) {
 
-        console.log('Received request to create an account');
+    logger.info('Received request to create an account', { endpoint: '/create-account', body: req.body });
 
-        if (
-            !req.body.username ||
-            !req.body.password || 
-            !req.body.email    ||
-            !req.body.type
-        ) {
-            res.status(400);
-            return res.send({
-                error: "Malformed request"
-            });
-        }
-
-        const username = req.body.username;
-        const password = req.body.password;
-        const email = req.body.email;
-        const type = req.body.type;
-
-        // Validate data
-        for (const credential of [username, password, email, type]) {
-            if (typeof credential != 'string' || credential.length < 1) {
-                res.status(400);
-                return res.send({error: `Expected "${credential}" to be a string`});
-            }
-        }
-
-        const lowerCaseUsername = username.toLowerCase();
-
-        // password = sha256(username + password)
-        const encoded_password = sha256(lowerCaseUsername + password);
-
-        try {
-
-            const accountDetails = await accountFunctions.createAccount({
-                username: lowerCaseUsername,
-                encoded_password,
-                email,
-                type,
-                diamClaimable: 0
-            }, usersCollection);
-
-            res.status(200);
-            res.send(accountDetails);
-
-        }
-        catch (e) {
-            console.log(e)
-            if (e instanceof errors.BaseError) {
-                res.status(e.errorCode);
-                return res.send({
-                    name: e.name,
-                    error: e.message,
-                    cause: e.cause,
-                    errorCode: e.errorCode
-                });
-            }
-        }
-        
-
-});
-
-//@ts-expect-error Unsure why this happens
-app.post('/verify-authentication', async function (req, res) {
-
-        console.log('Received request to verify authentication');
-    
-        if (!req.body.username || !req.body.accessToken) {
-            res.status(400);
-            return res.send({
-                error: "Malformed request"
-            });
-        }
-    
-        const username = req.body.username;
-        const accessToken = req.body.accessToken;
-    
-        try {
-    
-            const details = await accountFunctions.verifyAuthentication({
-                username: username,
-                encoded_password: accessToken
-            }, usersCollection);
-
-            res.status(200);
-            res.send(details);
-    
-        }
-    
-        catch (error) {
-    
-            if (error instanceof errors.BaseError) {
-                res.status(error.errorCode);
-                return res.send({
-                    name: error.name,
-                    error: error.message,
-                    cause: error.cause,
-                    errorCode: error.errorCode
-                });
-            }
-    
-            else {
-                res.status(500);
-                return res.send({
-                    error: "Internal server error",
-                    cause: error
-                });
-            }
-    
-        }
-    
-});
-
-// @ts-expect-error Unsure why this happens
-app.post('/check-pregame', async function (req, res) {
-
-    /**
-     *  Requires the following properties:
-     *  endpoint - string
-     *  pregameMatchID - string
-     *  clientPlatform - string
-     *  client version - string
-     *  entitlementsJWT - string
-     *  authToken - string
-     * 
-     *  Authorization:
-     *  username - string
-     *  accessToken - string
-     */
-
-    // Ensure above properties exist
-
-    console.log('Received request to check pregame');
-    console.log(req.body);
-
-    if (
-        !req.body.username ||
-        !req.body.accessToken
-    ) {
+    if (!req.body.username || !req.body.password || !req.body.email || !req.body.type) {
         res.status(400);
-        return res.send({
-            error: "Malformed request\nRequired properties: username, accessToken"
-        });
+        return res.send({ error: "Malformed request" });
     }
 
-    const username = req.body.username;
-    const accessToken = req.body.accessToken;
+    const { username, password, email, type } = req.body;
+
+    for (const credential of [username, password, email, type]) {
+        if (typeof credential !== 'string' || credential.length < 1) {
+            res.status(400);
+            return res.send({ error: `Expected "${credential}" to be a string` });
+        }
+    }
+
+    const lowerCaseUsername = username.toLowerCase();
+    const encoded_password = sha256(lowerCaseUsername + password);
 
     try {
+        const accountDetails = await accountFunctions.createAccount({
+            username: lowerCaseUsername,
+            encoded_password,
+            email,
+            type,
+            diamClaimable: 0
+        }, usersCollection);
 
-        await accountFunctions.verifyAuthentication({
-            username: username,
+        res.status(200).send(accountDetails);
+    } catch (e) {
+        logger.error('Error creating account', { error: e });
+        if (e instanceof errors.BaseError) {
+            res.status(e.errorCode).send({
+                name: e.name,
+                error: e.message,
+                cause: e.cause,
+                errorCode: e.errorCode
+            });
+        }
+    }
+});
+
+app.post('/verify-authentication', async function (req, res) {
+
+    logger.info('Received request to verify authentication', { endpoint: '/verify-authentication', body: req.body });
+
+    if (!req.body.username || !req.body.accessToken) {
+        res.status(400).send({ error: "Malformed request" });
+        return;
+    }
+
+    const { username, accessToken } = req.body;
+
+    try {
+        const details = await accountFunctions.verifyAuthentication({
+            username,
             encoded_password: accessToken
         }, usersCollection);
 
-    }
-
-    catch (error) {
-
+        res.status(200).send(details);
+    } catch (error) {
+        logger.error('Error verifying authentication', { error });
         if (error instanceof errors.BaseError) {
-            res.status(error.errorCode);
-            return res.send({
+            res.status(error.errorCode).send({
                 name: error.name,
                 error: error.message,
                 cause: error.cause,
                 errorCode: error.errorCode
             });
+        } else {
+            res.status(500).send({ error: "Internal server error", cause: error });
         }
+    }
+});
 
-        else {
-            res.status(500);
-            return res.send({
-                error: "Internal server error",
-                cause: error
-            });
-        }
+app.post('/check-pregame', async function (req, res) {
 
+    logger.info('Received request to check pregame', { endpoint: '/check-pregame', body: req.body });
+
+    if (!req.body.username || !req.body.accessToken) {
+        res.status(400).send({ error: "Malformed request\nRequired properties: username, accessToken" });
+        return;
     }
 
-    if (
-        !req.body.endpoint ||
-        !req.body.clientPlatform ||
-        !req.body.clientVersion ||
-        !req.body.entitlementsJWT ||
-        !req.body.authToken
-    ) {
-        res.status(400);
-        return res.send({
-            error: "Malformed request\nRequired properties: endpoint, clientPlatform, clientVersion, entitlementsJWT, authToken"
-        });
-    }
+    const { username, accessToken, endpoint, clientPlatform, clientVersion, entitlementsJWT, authToken, matchID, playerID } = req.body;
 
-    const endpoint = req.body.endpoint;
-    const clientPlatform = req.body.clientPlatform;
-    const clientVersion = req.body.clientVersion;
-    const entitlementsJWT = req.body.entitlementsJWT;
-    const authToken = req.body.authToken;
-    const matchID = req.body.matchID;
-    const playerID = req.body.playerID;
-
-    // check if the matchID is already in pregameMatchesCollection
-    const match = await pregameMatchesCollection.findOne({ matchID: matchID, username: username });
-
-    if (match) {
-        res.status(400);
-        return res.send({
-            error: "Match already checked"
-        });
-    }
-    
-    // add the matchID to mongodb pregameMatchesCollection
     try {
 
-        const result = await pregameMatchesCollection.insertOne({
-            username: req.body.username,
-            matchID: matchID,
-            time: Date.now(),
-            didInstalock: "Undetermined (Did not check)",
-            netReward: 0
-        });
+        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
 
-        console.log(result);
+    } catch (error) {
 
-        // Analyze the pregame
-        await analyzePregame({
+        logger.error('Authentication error in check-pregame', { error });
+
+        if (error instanceof errors.BaseError) {
+            res.status(error.errorCode).send({
+                name: error.name,
+                error: error.message,
+                cause: error.cause,
+                errorCode: error.errorCode
+            });
+
+        } else {
+
+            res.status(500).send({ error: "Internal server error", cause: error });
+
+        }
+
+        return;
+    }
+
+    const match = await pregameMatchesCollection.findOne({ matchID, username });
+
+    if (match) {
+        res.status(400).send({ error: "Match already checked" });
+        return;
+    }
+
+    try {
+        
+        analyzePregame({
             endpoint,
             clientPlatform,
             clientVersion,
@@ -268,68 +179,32 @@ app.post('/check-pregame', async function (req, res) {
             pregameMatchesCollection
         });
 
-    }
+        res.status(200).send({ success: true });
 
-    catch (error) {
-        console.error('Error in check-pregame:', error);
-        res.status(500).json({ error: error.message });
+    } catch (error) {
+        logger.error('Error in check-pregame', { error });
+        res.status(500).send({ error: error.message });
     }
-
-    
 });
 
-//@ts-expect-error Unsure why this happens
 app.post('/login', async function (req, res) {
-    
-        if (!req.body.username || !req.body.password) {
-            res.status(400);
-            return res.send({
-                error: "Malformed request"
-            });
-        }
-    
-        const username = req.body.username;
-        const password = req.body.password;
+    logger.info('Received request for login', { endpoint: '/login', body: req.body });
 
-        const encoded_password = sha256(username + password);
-    
-        try {
-            const accountDetails = await accountFunctions.loginAccount({
-                username,
-                encoded_password // NOT good security. You'd wanna send them an expiring access token, not just the encoded pwd.
-            }, usersCollection);
-    
-            res.status(200);
-            res.send(accountDetails);
-        }
-    
-        catch (e) {
-            if (e instanceof errors.BaseError) {
-                res.status(e.errorCode);
-                return res.send({
-                    name: e.name,
-                    error: e.message,
-                    cause: e.cause,
-                    errorCode: e.errorCode
-                });
-            }
-        }
-    
-})
-
-//@ts-expect-error Unsure why this happens
-app.get('/check-admin-account', async function (req, res) {
-    
-    try {
-        const response = await accountFunctions.checkAdmin(usersCollection);
-        res.status(200);
-        res.send(response);
+    if (!req.body.username || !req.body.password) {
+        res.status(400).send({ error: "Malformed request" });
+        return;
     }
 
-    catch (e) {
+    const { username, password } = req.body;
+    const encoded_password = sha256(username + password);
+
+    try {
+        const accountDetails = await accountFunctions.loginAccount({ username, encoded_password }, usersCollection);
+        res.status(200).send(accountDetails);
+    } catch (e) {
+        logger.error('Error in login', { error: e });
         if (e instanceof errors.BaseError) {
-            res.status(e.errorCode);
-            return res.send({
+            res.status(e.errorCode).send({
                 name: e.name,
                 error: e.message,
                 cause: e.cause,
@@ -337,44 +212,113 @@ app.get('/check-admin-account', async function (req, res) {
             });
         }
     }
-    
 });
 
-//@ts-expect-error Unsure why this happens
-app.post('/reward-user', async function (req, res) {
+app.get('/check-admin-account', async function (req, res) {
+    logger.info('Received request to check admin account', { endpoint: '/check-admin-account' });
+
+    try {
+        const response = await accountFunctions.checkAdmin(usersCollection);
+        res.status(200).send(response);
+    } catch (e) {
+        logger.error('Error in check-admin-account', { error: e });
+        if (e instanceof errors.BaseError) {
+            res.status(e.errorCode).send({
+                name: e.name,
+                error: e.message,
+                cause: e.cause,
+                errorCode: e.errorCode
+            });
+        }
+    }
+});
+
+// @ts-expect-error unsure why this happens
+app.post('/get-matches-for-user', async function (req, res) {
+
+    logger.info('Received request to get matches for user', { endpoint: '/get-matches-for-user', body: req.body });
+
+    if (!req.body.username || !req.body.accessToken) {
+        return res.status(400).send({ error: "Malformed request" });
+    }
+
+    const { username, accessToken } = req.body;
 
     try {
 
-        const toUsername = req.body.toUser;
+        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
 
-        if (!toUsername) {
-            res.status(400);
-            return res.send({
-                error: "Malformed request"
-            });
-        }
-
-        const toUser = await usersCollection.findOne<User>({ username: toUsername });
-        
-        if (!toUser) {
-            res.status(404);
-            return res.send({
-                error: "User not found"
-            });
-        }
-
-        const result = accountFunctions.transferFromAdminTo(toUser, usersCollection);
-
-        res.status(200);
-        res.send(result);
-        
     } catch (error) {
-        console.error('Error in make-payment:', error);
-        res.status(500).json({ error: error.message });
+
+        logger.error('Authentication error in get-matches-for-user', { error });
+
+        if (error instanceof errors.BaseError) {
+
+            return res.status(error.errorCode)
+            .send({
+                name: error.name,
+                error: error.message,
+                cause: error.cause,
+                errorCode: error.errorCode
+            });
+            
+        } else {
+            return res.status(500).send({ error: "Internal server error", cause: error });
+        }
+    }
+
+    try {
+
+        const matches = await pregameMatchesCollection.find<PregameMatch>({ username }).toArray();
+        return res.status(200).send({ matches: matches });
+
+    } catch (error) {
+
+        logger.error('Error in get-matches-for-user', { error });
+        return res.status(500).send({ error: error.message });
+
     }
 
 });
 
+app.post('/reward-user', async function (req, res) {
+    logger.info('Received request to reward user', { endpoint: '/reward-user', body: req.body });
+
+    const { toUser: toUsername } = req.body;
+
+    if (!toUsername) {
+        res.status(400).send({ error: "Malformed request" });
+        return;
+    }
+
+    try {
+        const toUser = await usersCollection.findOne<User>({ username: toUsername });
+        if (!toUser) {
+            res.status(404).send({ error: "User not found" });
+            return;
+        }
+
+        const result = await accountFunctions.transferFromAdminTo(toUser, usersCollection, transactionCollection);
+        res.status(200).send(result);
+
+    } catch (error) {
+
+        logger.error('Error in reward-user', { error });
+
+        if (error instanceof errors.BaseError) {
+            res.status(error.errorCode).send({
+                name: error.name,
+                error: error.message,
+                cause: error.cause,
+                errorCode: error.errorCode
+            });
+        }
+        else {
+            res.status(500).send({ error: "Internal server error", cause: error });
+        }
+    }
+});
+
 app.listen(port, () => {
-    console.log(`Diamante backend listening at http://localhost:${port}`);
+    logger.info(`VAIL webserver listening at http://localhost:${port}`);
 });

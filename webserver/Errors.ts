@@ -94,3 +94,16 @@ export class ThirdPartyError extends BaseError {
         });
     }
 }
+
+export class NotInPregameError extends BaseError {
+    
+        constructor(error: unknown, message: string = "Not in pregame") {
+            super({
+                name: "NotInPregameError",
+                message: message,
+                cause: error,
+                errorCode: 404
+            });
+        }
+
+}

@@ -168,6 +168,7 @@ export async function loginAccount(properties: Pick<User, "username" | "encoded_
     }
 
 }
+
 /*
 Verify an admin exists and has the necessary balance to perform operations.
 If the account is on the testnet, generates private/public key if not already present.
@@ -407,7 +408,7 @@ export async function getBalance(ofUser: User) {
 
 }
 
-export async function transferFromAdminTo(toUser: User, usersCollection: Collection<Document>) {
+export async function transferFromAdminTo(toUser: User, usersCollection: Collection<Document>, transactionsCollection: Collection<Document>) {
 
     let hasReflectedInDatabase = false;
 
@@ -455,6 +456,16 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
 
         console.log(`Payment made from ${adminPublicKey} to ${toUser.public_key} with amount ${toUser.diamClaimable} DIAM`, result);
 
+        await transactionsCollection.insertOne({
+            "from": adminPublicKey,
+            "to": toUser.public_key,
+            "amount": toUser.diamClaimable,
+            "timestamp": new Date(),
+            "transaction_id": result.hash,
+            "mode": toUser.type,
+            "transactionDetails": result
+        });
+
         return {
             "message": `Payment of ${toUser.diamClaimable} DIAM made to ${toUser.public_key} successfully`
         }
@@ -465,6 +476,10 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
 
         if (hasReflectedInDatabase) {
             usersCollection.updateOne({"username": toUser.username}, {$set: {"diamClaimable": toUser.diamClaimable}});
+        }
+
+        if (e instanceof errors.BaseError) {
+            throw e;
         }
 
         console.error('Error in transfer-from-admin-to:', e);
