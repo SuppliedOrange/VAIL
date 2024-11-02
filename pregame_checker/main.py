@@ -5,7 +5,7 @@ from isGameRunning import logging
 import os
 import requests
 from valclient import Client
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, freeze_support
 import threading
 import pystray
 from PIL import Image, ImageTk
@@ -649,7 +649,12 @@ def gui_app(queue):
         app.after(200, check_queue)
 
     check_queue()
-    app.mainloop()
+
+    while True:
+
+        sleep(0.1)
+        app.update()
+        app.update_idletasks()
 
 
 def connectionErrorWindow():
@@ -822,3 +827,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    freeze_support()
