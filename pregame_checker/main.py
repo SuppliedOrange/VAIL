@@ -63,11 +63,11 @@ def set_window_icon(window):
             icon_photo = ImageTk.PhotoImage(icon_image)
             window.iconphoto(True, icon_photo)
             
-            print(f"Icon set successfully from: {icon_path}")
+            logging.debug(f"Icon set successfully from: {icon_path}")
         except Exception as e:
-            print(f"Failed to set window icon: {e}")
+            logging.error(f"Failed to set window icon: {e}")
     else:
-        print(f"Icon not found at: {icon_path}")
+        logging.debug(f"Icon not found at: {icon_path}")
 
 
 def openLink(lnk):
@@ -82,7 +82,7 @@ def appState():
             return state
     except (FileNotFoundError, json.JSONDecodeError):  # Handle specific exceptions
         writeAppState(0)  # Initialize the file with default values
-        print("created json file for app state")
+        logging.debug("created json file for app state")
         return 0            
 
 def writeAppState(arg):
@@ -96,14 +96,14 @@ def writeAppState(arg):
 
     with open(filePath, 'w') as f:
         json.dump(data, f, indent=4)  # Write the updated data back to the file
-        print(f"updated app state value to {arg}")
+        logging.debug(f"updated app state value to {arg}")
 
 def initialize_json_file():
     # Initialize the JSON file with default values if it doesn't exist or is empty.
     if not os.path.exists(filePath) or os.path.getsize(filePath) == 0:
         with open(filePath, 'w') as f:
             json.dump({'loginState': 0, 'appState': 0}, f, indent=4)
-        print(f"Initialized JSON file at {filePath}")
+        logging.debug(f"Initialized JSON file at {filePath}")
 
 def read_json_file():
     # Read the JSON file and return the data
@@ -118,12 +118,12 @@ def write_json_file(data):
     # Write the data to the JSON file
     with open(filePath, 'w') as f:
         json.dump(data, f, indent=4)
-        print(f"Successfully wrote data to {filePath}")
+        logging.debug(f"Successfully wrote data to {filePath}")
 
 def loginState():
     data = read_json_file()
     state = data.get('loginState', 0)
-    print(f"Current login state: {state}")
+    logging.debug(f"Current login state: {state}")
     return state
 
 def writeLoginState(arg):
@@ -134,19 +134,19 @@ def writeLoginState(arg):
             del data['username']
         if 'password' in data:
             del data['password']
-    print(f"Writing login state: {arg}")
+    logging.debug(f"Writing login state: {arg}")
     write_json_file(data)
 
 
 def restart_app():
-    print("Restarting application...")
+    logging.debug("Restarting application...")
     python = sys.executable
     os.execl(python, python, *sys.argv)
 
 
 def logout():
     writeLoginState(0)
-    print("Logged out")
+    logging.debug("Logged out")
     restart_app()
 
 
@@ -183,13 +183,13 @@ def showLoginPopup():
             # Disable login button and show loading state
             login_button.configure(state="disabled", text="Logging in...")
             error_label.configure(text="Attempting to login...")
-            print(f"Username: {username}, Password: {password}")
+            logging.debug(f"Username: {username}, Password: {password}")
             perform_login_attempt(username, password)
         else:
             errorLabel("Username and password required")
 
     def on_window_close():
-        print("Login cancelled")
+        logging.debug("Login cancelled")
         writeLoginState(0)
         login_window.destroy()
         sys.exit(0)
@@ -250,20 +250,20 @@ def showLoginPopup():
 
 def enableButton():
     queue.put("enable")
-    print("Enabled!")
+    logging.debug("Enabled app function!")
     logging.debug("Enabled VAIL")
     update_status_label(True)
 
 def disableButton():
     queue.put("disable")
-    print("Disabled!")
+    logging.debug("Disabled app function!")
     logging.debug("Disabled VAIL")
     update_status_label(False)
 
 
 def quit_app():
     queue.put("quit")
-    print("Quitting!")
+    logging.debug("Quitting!")
     logging.debug("Quitting VAIL")
     if 'app' in globals():
         app.quit()
@@ -284,7 +284,7 @@ def attempt_verifying_credentials():
     data = read_json_file()
 
     if 'username' not in data or 'password' not in data:
-        print("No username or password found in file")
+        logging.debug("No username or password found in file")
         return False
     
     username = data['username']
@@ -299,30 +299,29 @@ def attempt_verifying_credentials():
         if response.status_code == 200:
             return True
         else:
-            print(response.status_code, response.text)
+            logging.error(f"Verification failed: {response.status_code} - {response.text}")
             return False
     except requests.exceptions.ConnectionError:
-        print("Connection error. Unable to reach the server.")
+        logging.error("Connection error. Unable to reach the server.")
         errorLabel("Connection error. Unable to reach the server. Maybe check your internet?")
         return ConnectionError
     except requests.exceptions.Timeout:
-        print("Request timed out. The server may be unavailable.")
+        logging.error("Request timed out. The server may be unavailable.")
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
 
-                             
 def attempt_logging_in(username, password, max_retries=4):
     invalid_credentials = False
     for attempt in range(max_retries):
         try:
-            print(f"Attempt {attempt + 1} of {max_retries}: Sending login request")
+            logging.debug(f"Attempt {attempt + 1} of {max_retries}: Sending login request")
 
             response = requests.post(f"{server_endpoint}/login", json={
                 'username': username,
                 'password': password
             }, timeout=10)
 
-            print(f"Login response received: {response.status_code} - {response.text}")
+            logging.debug(f"Login response received: {response.status_code} - {response.text}")
 
             if response.status_code == 200:
                 jsonified_response = response.json()
@@ -334,14 +333,14 @@ def attempt_logging_in(username, password, max_retries=4):
                 if 'username' not in data or 'password' not in data:
                     data['username'] = credentials['username']
                     data['password'] = credentials['encoded_password']
-                    print(data)
+                    logging.debug("json file: ", data)
                 else:
-                    print("Username and password already exist in file")
+                    logging.debug("Username and password already exist in file")
                 write_json_file(data)
                 return True
 
             elif response.status_code == 400:
-                print("Invalid credentials")
+                logging.debug("Invalid credentials")
                 invalid_credentials = True
                 login_window.after(0, lambda: error_label.configure(
                     text="Invalid credentials, please try again",
@@ -349,22 +348,22 @@ def attempt_logging_in(username, password, max_retries=4):
                 ))
                 return None
             else:
-                print("else block \nattempt logging\n in", response.status_code, response.text)
+                logging.debug("else block \nattempt logging\n in", response.status_code, response.text)
                 return None
 
         except requests.exceptions.ConnectionError:
-            print(f"Attempt {attempt + 1} failed: Connection error.\nRetrying...")
+            logging.error(f"Attempt {attempt + 1} failed: Connection error.\nRetrying...")
             errorLabel(f"Attempt {attempt + 1} failed: Connection error. Retrying...")
         except requests.exceptions.Timeout:
-            print(f"Attempt {attempt + 1} failed: Request timed out.Retrying...")
+            logging.error(f"Attempt {attempt + 1} failed: Request timed out.Retrying...")
             errorLabel(f"Attempt {attempt + 1} failed: Request timed error.Retrying...")
         except requests.exceptions.RequestException as e:
-            print(f"Attempt {attempt + 1} failed: {e}\nRetrying...")
+            logging.error(f"Attempt {attempt + 1} failed: {e}\nRetrying...")
             errorLabel(f"Attempt {attempt + 1} failed. Retrying...")
         sleep(2)
         
     if not invalid_credentials:
-        print(f"Login failed after {max_retries} attempts")
+        logging.debug(f"Login failed after {max_retries} attempts")
         errorLabel(f"Login failed after {max_retries} attempts")
     return None
 
@@ -400,25 +399,22 @@ def tell_server_pregame_is_detected(client: Client):
         },
         timeout=15)
         
-        print("Sent request to server successfully")
-
-        print (response.json())
+        logging.debug("Sent request to server successfully")
+        logging.debug(response.json())
 
         if 'error' in response.json():
             if response.json()['error'] == "Match already checked":
                 sleep(40)
 
     except Exception as e:
-        print(e)
-        print('dam we fucked up better handle this error ig')
-
+        logging.error(f"Error sending pregame data: {e}")
 
 def login_logic(username, password, login_popup):
     loginAttempt = attempt_logging_in(username, password)
     if loginAttempt is None:
-        print('login attempt failed')
+        logging.debug('login attempt failed')
     else:
-        print(f"Attempting to login with username: {username}, password: {password}")
+        logging.debug(f"Attempting to login with username: {username}, password: {password}")
 
 
 def gui_app(queue):
@@ -613,27 +609,25 @@ def gui_app(queue):
     def iterate_check_pregame():
         global client, matchID
 
-        print("Checking for game status")
+        logging.debug("Checking for game status")
 
         if isGameRunning.isRunning() and int(appState()) == 1:
-            print("Conditions met, checking pregame")
+            logging.debug("Conditions met, checking pregame")
 
             if not client:
-                print("Creating client")
+                logging.debug("Creating client")
                 client = isGameRunning.create_client()
             
             matchID = isGameRunning.check_in_pregame(client)
-            print(matchID)
+            logging.debug(f"Match ID: {matchID}")
 
             if matchID is not None:
-                print("Pregame detected")
+                logging.debug("Pregame detected")
                 tell_server_pregame_is_detected(client)
             else: 
-                print("Not in pregame at the moment")
+                logging.debug("Not in pregame at the moment")
         else: 
-            print("Conditions not met")
-
-        app.after(pregame_iteration_timeout, iterate_check_pregame)
+            logging.debug("Conditions not met")
 
     gameStatus()
     iterate_check_pregame()
@@ -731,7 +725,7 @@ def connectionErrorWindow():
     retry_button.pack(pady=40)
 
     def on_window_close():
-        print("Login cancelled")
+        logging.debug("Login cancelled")
         errorWindow.destroy()
         sys.exit(0)
     
@@ -770,15 +764,14 @@ def main():
 
     def cleanup_processes():
         if tray_process and tray_process.is_alive():
-            print("Cleaning up tray icon...")
-            # Send quit message to tray to remove icon
+            logging.debug("Cleaning up tray icon...")
             queue.put("quit")
-            tray_process.join(timeout=3)  # Wait up to 3 seconds
+            tray_process.join(timeout=3)
             if tray_process.is_alive():
                 tray_process.terminate()
 
         if gui_process and gui_process.is_alive():
-            print("Cleaning up GUI...")
+            logging.debug("Cleaning up GUI...")
             gui_process.terminate()
             gui_process.join()
 
@@ -786,29 +779,29 @@ def main():
         initialize_json_file()
 
         if loginState() == 1:
-            print("Login state is not 0, continuing...")
+            logging.debug("Login state is not 0, continuing...")
             while True:
-                print("Attempting to verify credentials...")
+                logging.debug("Attempting to verify credentials...")
                 try:
                     verification_result = attempt_verifying_credentials()
                     
                     if verification_result == ConnectionError:
-                        print("Connection error, unable to reach server")
+                        logging.debug("Connection error, unable to reach server")
                         connectionErrorWindow()                    
                     if verification_result:
-                        print("Credentials verified, continuing...")
+                        logging.debug("Credentials verified, continuing...")
                         break
                         
-                    print("Credentials not verified, logging out...")
+                    logging.debug("Credentials not verified, logging out...")
                     writeLoginState(0)
                     showLoginPopup()
                     
                 except Exception as e:
-                    print(f"An error occurred while verifying credentials: {e}")
+                    logging.error(f"An error occurred while verifying credentials: {e}")
                     sleep(5)
 
         else:
-            print("Login state is 0, showing login popup...")
+            logging.debug("Login state is 0, showing login popup...")
             showLoginPopup()
 
         gui_process = Process(target=gui_app, args=(queue,), name="GUI")
@@ -820,12 +813,12 @@ def main():
         gui_process.join()
 
     except KeyboardInterrupt:
-        print("\nReceived keyboard interrupt, shutting down")
+        logging.debug("\nReceived keyboard interrupt, shutting down")
     except Exception as e:
-        print(f"Unexpected error occured: {e}")
+        logging.error(f"Unexpected error occured: {e}")
     finally:
         cleanup_processes()
-        print("Application shutdown complete")
+        logging.debug("Application shutdown complete")
 
 if __name__ == "__main__":
     main()
