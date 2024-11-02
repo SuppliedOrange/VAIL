@@ -652,6 +652,7 @@ def gui_app(queue):
                 update_status_label(False)
             elif message == "quit":
                 app.quit()
+                quit_app()
                 raise KeyboardInterrupt("Quit from tray")
         app.after(200, check_queue)
 
@@ -771,17 +772,18 @@ def setup_tray_icon(queue):
 def main():
     
     def cleanup_processes():
-        if tray_process and tray_process.is_alive():
-            logging.debug("Cleaning up tray icon...")
-            queue.put("quit")
-            tray_process.join(timeout=3)
-            if tray_process.is_alive():
-                tray_process.terminate()
 
-        if gui_process and gui_process.is_alive():
+        logging.info("Cleaning up processes...")
+
+        if tray_process:
+            logging.debug("Cleaning up tray icon...")
+            tray_process.terminate()
+
+        if gui_process:
             logging.debug("Cleaning up GUI...")
             gui_process.terminate()
-            gui_process.join()
+        
+        queue.put("quit")
 
     try:
 
