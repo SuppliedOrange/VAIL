@@ -44,6 +44,7 @@ export default function Dashboard() {
                     setToastMessage("Error: Unable to fetch matches, perhaps our app hasn't seen you play!");
                     return;
                 }
+                matches.sort((a, b) => b.time - a.time);
                 setMatches(matches);
 
             } catch (err) {
@@ -129,7 +130,7 @@ export default function Dashboard() {
         <main className="mx-auto mt-10 max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
 
             <div className="sm:text-center lg:text-left">
-                <h1 className="text-6xl font-extrabold tracking-tight text-gray-900 sm:text-7xl md:text-9xl">
+                <h1 className="text-6xl font-extrabold tracking-tight text-gray-900 sm:text-7xl md:text-8xl">
                     <span className="block">DASHBOARD</span>
                 </h1>
             </div>
@@ -186,7 +187,8 @@ export default function Dashboard() {
                 
             <div className="space-y-4">
 
-                {matches?.reverse()?.slice(0, page * ITEMS_PER_PAGE).map((match) => (
+                
+                {matches?.slice(0, page * ITEMS_PER_PAGE).map((match) => (
 
                 <div key={match.matchID} className="rounded-lg border p-4">
 

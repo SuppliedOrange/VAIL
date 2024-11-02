@@ -166,7 +166,7 @@ def showLoginPopup():
         def handle_successful_login():
             writeLoginState(1)
             login_window.destroy()
-            app.deiconify()
+            if app: app.deiconify()
 
         threading.Thread(target=login_thread, daemon=True).start()
 
