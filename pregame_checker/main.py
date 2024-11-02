@@ -166,6 +166,7 @@ def showLoginPopup():
         def handle_successful_login():
             writeLoginState(1)
             login_window.destroy()
+            app.deiconify()
 
         threading.Thread(target=login_thread, daemon=True).start()
 
@@ -256,25 +257,40 @@ def disableButton():
 
 
 def quit_app():
-
-    global tray_process, gui_process, app
-
-    logging.debug("Quitting!")
-
-    logging.debug("Quitting VAIL")
-
-    queue.put("quit")
-
-    if app:
-        app.quit()
-
-    if gui_process:
-        gui_app.terminate()
-    
-    if tray_process:
-        tray_process.terminate()
-
-    exit(0)
+    logging.debug("Quitting application...")
+    try:
+        # Signal all processes to quit
+        queue.put("quit")
+        
+        # Properly destroy and cleanup GUI
+        if 'app' in globals() and app:
+            app.quit()
+            app.destroy()
+        
+        # Force terminate processes if they exist
+        if 'gui_process' in globals() and gui_process:
+            gui_process.terminate()
+            gui_process.join(timeout=2)
+            if gui_process.is_alive():
+                gui_process.kill()
+                
+        if 'tray_process' in globals() and tray_process:
+            tray_process.terminate()
+            tray_process.join(timeout=2) 
+            if tray_process.is_alive():
+                tray_process.kill()
+                
+        # Clear queue
+        while not queue.empty():
+            queue.get()
+            
+        logging.debug("Application shutdown complete")
+        sys.exit(0)
+        
+    except Exception as e:
+        logging.error(f"Error during shutdown: {e}")
+        # Force exit if normal shutdown fails
+        os._exit(1)
 
 
 def gameStatus():
