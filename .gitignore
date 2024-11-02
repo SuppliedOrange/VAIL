@@ -1,7 +1,6 @@
 __pycache__/
 node_modules/
 .env
-pregameMatchDetails.json
 *.log
 dist/
 build/
