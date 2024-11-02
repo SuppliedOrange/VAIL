@@ -674,7 +674,7 @@ def connectionErrorWindow():
     connectionErrorLabel = ctk.CTkLabel(errorWindow, text='FAILED TO CONNECT TO THE SERVER\nPlease check your internet connection', text_color='red')
     connectionErrorLabel.pack(pady=(100,40))
 
-    def start_countdown(seconds=10):  # 10 second countdown
+    def start_countdown(seconds=30):
         def update_countdown():
             nonlocal seconds
             if seconds > 0:
