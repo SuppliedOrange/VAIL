@@ -133,8 +133,8 @@ def writeLoginState(arg):
 
 
 def restart_app():
-
     logging.debug("Restarting application...")
+    app.withdraw()
     showLoginPopup()
 
 
