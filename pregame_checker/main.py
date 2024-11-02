@@ -657,11 +657,7 @@ def gui_app(queue):
 
     check_queue()
 
-    while True:
-
-        sleep(0.1)
-        app.update()
-        app.update_idletasks()
+    app.mainloop()
 
 
 def connectionErrorWindow():

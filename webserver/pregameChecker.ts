@@ -214,6 +214,7 @@ export default async function analyzePregame(properties: pregameProperties) {
     pregameMatchLog.didInstalock = didInstalock;
     pregameMatchLog.netReward = netReward;
 
+    logger.info(`[analyzePregame] Rewarding user ${username} with ${netReward}`);
     await rewardUser(username, netReward, usersCollection);
 
     logger.info(`[analyzePregame] Analysis complete - Instalock: ${didInstalock}, Net Reward: ${netReward}`);

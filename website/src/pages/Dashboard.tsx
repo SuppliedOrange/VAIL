@@ -186,7 +186,7 @@ export default function Dashboard() {
                 
             <div className="space-y-4">
 
-                {matches?.slice(0, page * ITEMS_PER_PAGE).map((match) => (
+                {matches?.reverse()?.slice(0, page * ITEMS_PER_PAGE).map((match) => (
 
                 <div key={match.matchID} className="rounded-lg border p-4">
 
