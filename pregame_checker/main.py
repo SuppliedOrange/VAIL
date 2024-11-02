@@ -133,9 +133,9 @@ def writeLoginState(arg):
 
 
 def restart_app():
+
     logging.debug("Restarting application...")
-    python = sys.executable
-    os.execl(python, python, *sys.argv)
+    showLoginPopup()
 
 
 def logout():
@@ -256,6 +256,8 @@ def disableButton():
 
 
 def quit_app():
+
+    global tray_process, gui_process, app
 
     logging.debug("Quitting!")
 
@@ -773,6 +775,8 @@ def main():
     
     def cleanup_processes():
 
+        global tray_process, gui_process
+
         logging.info("Cleaning up processes...")
 
         if tray_process:
@@ -819,6 +823,8 @@ def main():
         else:
             logging.debug("Login state is 0, showing login popup...")
             showLoginPopup()
+
+        global gui_process, tray_process
 
         gui_process = Process(target=gui_app, args=(queue,), name="GUI")
         tray_process = Process(target=setup_tray_icon, args=(queue,), name="pysTray")
