@@ -194,6 +194,18 @@ def showLoginPopup():
         login_window.destroy()
         sys.exit(0)
 
+    def handle_enter(event):
+        login_button.invoke()
+    
+    def handle_escape(event):
+        on_window_close()
+
+    def handle_down(event):
+        entry_password.focus()
+    
+    def handle_up(event):
+        entry_username.focus()
+
     login_window = ctk.CTk()
     login_window.title("Login")
 
@@ -206,6 +218,7 @@ def showLoginPopup():
     screen_height = login_window.winfo_screenheight()
     x = (screen_width - window_width) // 2
     y = (screen_height - window_height) // 2
+    login_window.resizable(width=False, height=False)
     login_window.geometry(f'{window_width}x{window_height}+{x}+{y}')
 
     login_window.protocol("WM_DELETE_WINDOW", on_window_close)
@@ -220,11 +233,20 @@ def showLoginPopup():
     ctk.CTkLabel(login_window, text="Password:").pack(pady=10)
     entry_password = ctk.CTkEntry(login_window, show='*')
     entry_password.pack(pady=10)
-
+    
     login_button = ctk.CTkButton(login_window, text="Login", command=on_login)
     login_button.pack(pady=20)
 
+    login_window.bind("<Return>", handle_enter)
+    login_window.bind("<KP_Enter>", handle_enter)
+    login_window.bind("<Escape>", handle_escape)
+    login_window.bind("<Down>", handle_down)
+    login_window.bind("<Up>", handle_up)
+
+    login_window.after(100, lambda: entry_username.focus())
+    login_window.focus_force()
     login_window.mainloop()
+
 
 def enableButton():
     queue.put("enable")
@@ -399,36 +421,6 @@ def login_logic(username, password, login_popup):
         print(f"Attempting to login with username: {username}, password: {password}")
 
 
-def open_login_popup():
-    login_popup = ctk.CTkToplevel(app)
-    login_popup.title("Login")
-    login_popup.geometry("{screenWidth/3}x{screenHeight/3}")
-    login_popup.resizable(False, False)
-
-    login_label = ctk.CTkLabel(login_popup, text="Username:")
-    login_label.pack(pady=10)
-
-    login_entry = ctk.CTkEntry(login_popup)
-    login_entry.pack(pady=5)
-
-    password_label = ctk.CTkLabel(login_popup, text="Password:")
-    password_label.pack(pady=10)
-
-    password_entry = ctk.CTkEntry(login_popup, show="*")
-    password_entry.pack(pady=5)
-
-    login_button = ctk.CTkButton(
-        login_popup, 
-        text="Login", 
-        command=lambda: login_logic(
-            login_entry.get(), 
-            password_entry.get(), 
-            login_popup
-        )
-    )
-    login_button.pack(pady=10)
-
-
 def gui_app(queue):
     global app, statusLabel, gameStatusLabel, buttonLogout
     ctk.set_appearance_mode("dark")
@@ -443,7 +435,12 @@ def gui_app(queue):
     
     app = ctk.CTk()
     app.title("VAIL")
-    app.minsize(screenWidth/3, screenHeight/2.2)
+    appWindowWidth, appWindowHeight = screenWidth/3, screenHeight/2.2
+    x = (app.winfo_screenwidth() - appWindowWidth) // 2
+    y = (app.winfo_screenheight() - appWindowHeight) // 2
+    app.minsize(appWindowWidth, appWindowHeight)
+    app.geometry(f"{int(appWindowWidth)}x{int(appWindowHeight)}+{int(x)}+{int(y)}")
+    
     app.configure(fg_color="#0F1923")
     app.grid_columnconfigure(0, weight=1)
     app.grid_rowconfigure((0,1,2,3), weight=1)
@@ -666,13 +663,24 @@ def connectionErrorWindow():
     errorWindow.title("Connection ERROR")
     errorWindow_width = screenWidth // 3
     errorWindow_height = screenHeight // 3
+    errorWindow.minsize(errorWindow_width, errorWindow_height)
     # calculate screen centre position
     x = (screenWidth - errorWindow_width) // 2
     y = (screenHeight - errorWindow_height) // 2
     errorWindow.geometry(f'{errorWindow_width}x{errorWindow_height}+{x}+{y}')
-
     connectionErrorLabel = ctk.CTkLabel(errorWindow, text='FAILED TO CONNECT TO THE SERVER\nPlease check your internet connection', text_color='red')
     connectionErrorLabel.pack(pady=(100,40))
+
+    
+    def handle_escape(event):
+        on_window_close()
+
+    def handle_enter(event):
+        retry_button.invoke()
+
+    errorWindow.bind("<Return>", handle_enter)
+    errorWindow.bind("<KP_Enter>", handle_enter)
+    errorWindow.bind("<Escape>", handle_escape)
 
     def start_countdown(seconds=30):
         def update_countdown():
@@ -726,7 +734,8 @@ def connectionErrorWindow():
         print("Login cancelled")
         errorWindow.destroy()
         sys.exit(0)
-
+    
+    errorWindow.focus_force()
     errorWindow.protocol("WM_DELETE_WINDOW", on_window_close)
     start_countdown()
     errorWindow.mainloop()
@@ -753,11 +762,6 @@ def setup_tray_icon(queue):
         pystray.MenuItem("Quit", quit_all)
     ))
     icon.run()
-
-
-"""def show_gui():
-    gui_process = Process(target=gui_app)
-    gui_process.start()"""
 
 
 def main():
