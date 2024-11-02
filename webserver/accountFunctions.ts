@@ -116,13 +116,24 @@ export async function updatePublicKey(properties: Pick<User, "username" | "encod
             throw new errors.UserError(null, "Username or Password is incorrect");
         }
 
+        // Verify that the public key exists on diamcircle.
+        let accountDetails: Awaited<Aurora.AccountResponse> | null | { "error": string } = null;
+
+        let userWithNewKey: User = user;
+        userWithNewKey.public_key = properties.newPublicKey;
+
+        accountDetails = await validateUserExistsOn(userWithNewKey, user.type);
+
+        if (!accountDetails || 'error' in accountDetails) {
+            throw new errors.UserError(null, `Public key ${properties.newPublicKey} does not exist on diamcircle ${user.type}.`);
+        }
+
         await usersCollection.updateOne({"username": properties.username}, {$set: {"public_key": properties.newPublicKey}});
 
         return {
             success: true,
             public_key: properties.newPublicKey,
-            username: properties.username,
-            accessToken: properties.encoded_password
+            username: properties.username
         }
 
     }
@@ -182,7 +193,7 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
         const adminAccountMinimumThreshold = parseFloat(process.env.ADMIN_ACCOUNT_MINIMUM_THRESHOLD as string);
 
         if (!adminUsername) {
-            throw new errors.InternalServerError("Admin username could not be retrieved from environment variable!");
+            throw new errors.InternalServerError(null, "Admin username could not be retrieved from environment variable!");
         }
 
         const adminAccounts = await usersCollection.find<User>({
@@ -190,7 +201,7 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
         }).toArray();
 
         if (adminAccounts.length > 1) {
-            throw new errors.InternalServerError("Two accounts exist with the same username while searching for the admin account!");
+            throw new errors.InternalServerError(null, "Two accounts exist with the same username while searching for the admin account!");
         }
 
         if (adminAccounts.length == 1) {
@@ -215,15 +226,15 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
                     if (accountDetails.error.includes("NO_BAL_ERROR")) {
                         const attemptFund = await fundWithFriendbot(adminAccount.public_key);
                         if (attemptFund.error) {
-                            throw new errors.InternalServerError("Error while funding account", attemptFund.error);
+                            throw new errors.InternalServerError(null, `Error while funding account: ${attemptFund.error}`);
                         }
                     }
-                    throw new errors.InternalServerError("Error while loading account details", accountDetails.error);
+                    throw new errors.InternalServerError(null, `Error while loading account details: ${accountDetails.error}`);
                 }
 
                 // Get "native" balance. Native means DIAM ig?
                 if (!accountDetails) {
-                    throw new errors.InternalServerError("Failed to load account details.");
+                    throw new errors.InternalServerError(null, "Failed to load account details.");
                 }
 
                 let needsBalanceRefill = false;
@@ -233,7 +244,7 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
                     if (balanceResult.error.includes("NO_BAL_ERROR")) {
                         needsBalanceRefill = true;
                     } else {
-                        throw new errors.InternalServerError("Error while loading account details", balanceResult.error || "No error provided");
+                        throw new errors.InternalServerError(`Error while loading account details ${balanceResult.error || "No error provided"}`);
                     }
                 }
 
@@ -255,10 +266,10 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
             // Check balance, error if too low.
             else if (adminAccount.type === "mainnet") {
                 if (!adminAccount.public_key) {
-                    throw new errors.UserError("Admin account does not have a public key with it, which is required for mainnet. [NO_PUBKEY_ERROR]");
+                    throw new errors.UserError(null, "Admin account does not have a public key with it, which is required for mainnet. [NO_PUBKEY_ERROR]");
                 }
                 if (!adminAccount.private_key) {
-                    throw new errors.UserError("Admin account does not have a private key with it, which is required for mainnet. [NO_PRIVKEY_ERROR]");
+                    throw new errors.UserError(null, "Admin account does not have a private key with it, which is required for mainnet. [NO_PRIVKEY_ERROR]");
                 }
 
                 let accountDetails: Awaited<Aurora.AccountResponse> | null | { "error": string } = null;
@@ -266,18 +277,18 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
 
                 if (!accountDetails || 'error' in accountDetails) {
                     if (accountDetails.error.includes("NO_BAL_ERROR")) {
-                        throw new errors.NoBalanceError("Account not found on the mainnet. Balance may be too low or information might be wrong. [NO_BAL_ERROR]");
+                        throw new errors.NoBalanceError(null, "Account not found on the mainnet. Balance may be too low or information might be wrong. [NO_BAL_ERROR]");
                     }
-                    throw new errors.InternalServerError(`Error while loading account details: ${accountDetails.error}`);
+                    throw new errors.InternalServerError(null, `Error while loading account details: ${accountDetails.error}`);
                 }
 
                 const balanceResult = await getBalance(adminAccount);
                 if (balanceResult.balance === undefined || balanceResult.error) {
-                    throw new errors.InternalServerError(`Error while loading account details: ${balanceResult.error || "No error provided."}`);
+                    throw new errors.InternalServerError(null, `Error while loading account details: ${balanceResult.error || "No error provided."}`);
                 }
 
                 if (balanceResult.balance < adminAccountMinimumThreshold) {
-                    throw new errors.NoBalanceError("Balance is too low. Please fund the account. [NO_BAL_ERROR]");
+                    throw new errors.NoBalanceError(null, "Balance is too low. Please fund the account. [NO_BAL_ERROR]");
                 }
 
                 return {
@@ -291,13 +302,13 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
                 };
             }
         } else {
-            throw new errors.InternalServerError("Something went wrong.");
+            throw new errors.InternalServerError(null, "Something went wrong.");
         }
     } catch (e) {
         console.log(e);
         if (e instanceof errors.BaseError) {
             throw e;
-        } else throw new errors.InternalServerError(`Internal server error: ${e}`);
+        } else throw new errors.InternalServerError(null, `Internal server error: ${e}`);
     }
 }
 
@@ -362,7 +373,7 @@ export async function getBalance(ofUser: User) {
         const server = ofUser.type === "testnet" ? testnet_server_aurora : mainnet_server_aurora;
 
         if (!ofUser.public_key) {
-            throw new Error("User does not have a public key. [NO_PUBKEY_ERROR]");
+            throw new errors.UserError(null, "User does not have a public key. [NO_PUBKEY_ERROR]");
         }
 
         console.log(`Received request to get balance for account ${ofUser.public_key}`);
@@ -376,27 +387,26 @@ export async function getBalance(ofUser: User) {
         catch (e) {
 
             if (e.response.status === 404) {
-                throw new Error(`Account not found on the ${ofUser.type}. Maybe it has no balance? [NO_BAL_ERROR]`);
+                throw new errors.NoBalanceError(e, `Account not found on the ${ofUser.type}. Balance may be too low or information might be wrong. [NO_BAL_ERROR]`);
             }
 
         }
 
-        if (!accountDetails) throw new Error("Failed to load account details.");
+        if (!accountDetails) throw new errors.InternalServerError(null, "Failed to load account details.");
 
         const balances = accountDetails.balances.filter((balance) => balance.asset_type === "native");
 
         if (!balances || balances.length < 1) {
-            throw new Error("Failed to load account details.");
+            throw new errors.InternalServerError(null, "Balance is too low or does not exist");
         }
 
         const balance = parseFloat(balances[0].balance);
 
         if (!balance || typeof balance !== "number") {
-            throw new Error("Balance in account is not a number.");
+            throw new errors.InternalServerError(null, "Balance in account is not a number");
         }
 
         console.log(`Balance for account ${ofUser.public_key} is ${balance}`);
-
         return {"balance": balance};
 
     } catch (error) {
@@ -414,19 +424,19 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
 
     try {   
 
-        if (!toUser.public_key) throw new errors.ThirdPartyError("Recipient account does not have a public key.");
+        if (!toUser.public_key) throw new errors.ThirdPartyError(null, "Recipient account does not have a public key.");
 
         if (!toUser.diamClaimable) throw new errors.UserError(null, "Recipient account does not have a claimable balance.");
 
         const adminAccount = await checkAdmin(usersCollection, true);
 
-        if (!adminAccount) throw new errors.InternalServerError("Admin account could not be loaded.");
+        if (!adminAccount) throw new errors.InternalServerError(null, "Admin account could not be loaded.");
 
         const adminKeypair = Keypair.fromSecret(adminAccount.private_key);
         const adminPublicKey = adminKeypair.publicKey();
 
         if (toUser.type != adminAccount.type) {
-            throw new errors.InternalServerError(`Attempted to transfer from ${adminAccount.type} to ${toUser.type}. You must use a ${toUser.type} admin account before doing this.`);
+            throw new errors.InternalServerError(null, `Attempted to transfer from ${adminAccount.type} to ${toUser.type}. You must use a ${toUser.type} admin account before doing this.`);
         }
 
         const server = toUser.type === "mainnet" ? mainnet_server_horizon : testnet_server_horizon;

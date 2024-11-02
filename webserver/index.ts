@@ -214,14 +214,91 @@ app.post('/login', async function (req, res) {
     }
 });
 
+// @ts-expect-error unsure why this happens
+app.get('/get-balance', async function (req, res) {
+
+    logger.info('Received request to get balance', { endpoint: '/get-balance' });
+
+    if (!req.body.username || !req.body.accessToken) {
+        res.status(400).send({ error: "Malformed request" });
+        return;
+    }
+
+    const { username, accessToken } = req.body;
+
+    try {
+
+        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
+
+    } catch (error) {
+
+        logger.error('Authentication error in get-balance', { error });
+
+        if (error instanceof errors.BaseError) {
+            return res.status(error.errorCode).send({
+                name: error.name,
+                error: error.message,
+                cause: error.cause,
+                errorCode: error.errorCode
+            });
+
+        } else {
+
+            return res.status(500).send({ error: "Internal server error", cause: error });
+
+        }
+    }
+
+    try {
+
+        const user = await usersCollection.findOne<User>({ username });
+
+        if (!user) {
+            return res.status(404).send({ error: "User not found" });
+        }
+
+        const balanceRequest = await accountFunctions.getBalance(user);
+
+        if (balanceRequest.error) {
+            return res.status(500).send({ error: balanceRequest.error });
+        }
+
+        res.status(200).send({ balance: balanceRequest.balance });
+
+    }
+
+    catch (e) {
+            
+            logger.error('Error in get-balance', { error: e });
+    
+            if (e instanceof errors.BaseError) {
+                return res.status(e.errorCode).send({
+                    name: e.name,
+                    error: e.message,
+                    cause: e.cause,
+                    errorCode: e.errorCode
+                });
+            }
+    
+            return res.status(500).send({ error: e.message });
+
+    }
+
+
+});
+
 app.get('/check-admin-account', async function (req, res) {
     logger.info('Received request to check admin account', { endpoint: '/check-admin-account' });
 
     try {
+
         const response = await accountFunctions.checkAdmin(usersCollection);
         res.status(200).send(response);
+
     } catch (e) {
+
         logger.error('Error in check-admin-account', { error: e });
+
         if (e instanceof errors.BaseError) {
             res.status(e.errorCode).send({
                 name: e.name,
@@ -229,6 +306,7 @@ app.get('/check-admin-account', async function (req, res) {
                 cause: e.cause,
                 errorCode: e.errorCode
             });
+
         }
     }
 });

@@ -2,7 +2,7 @@ import { useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import axios from "axios";
-import verifyLocalCredentials from "../utility/verifyLocalCredentials";
+import verifyLocalCredentials from "../apiOperations/verifyLocalCredentials";
 
 export default function Signup() {
     const [email, setEmail] = useState("");

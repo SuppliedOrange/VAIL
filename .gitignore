@@ -4,3 +4,4 @@ node_modules/
 pregameMatchDetails.json
 *.log
 dist/
+build/

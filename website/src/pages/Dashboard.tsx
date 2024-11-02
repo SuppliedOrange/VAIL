@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import verifyLocalCredentials from "../utility/verifyLocalCredentials";
-import getMatchesForUser from "../utility/getMatchesForUser";
+import verifyLocalCredentials from "../apiOperations/verifyLocalCredentials";
+import getMatchesForUser from "../apiOperations/getMatchesForUser";
 import { PregameMatch } from "../types/PregameMatch";
 import { ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 
@@ -38,7 +38,6 @@ export default function Dashboard() {
                 setClaimableBalance(claimableBalance);
 
                 
-
                 // Fetch matches
                 const matches: null | PregameMatch[] = await getMatchesForUser();
                 if (matches === null) {
@@ -139,7 +138,7 @@ export default function Dashboard() {
 
             <div className="flex flex-col md:flex-row ">
 
-                <div className="mt-6 md:w-full rounded-lg bg-white p-6 shadow-md md:mr-10">
+                <div className="mt-6 rounded-lg bg-white p-6 shadow-md md:mr-10 md:w-full">
                     <h2 className="text-xl font-semibold text-gray-800">Claimable Balance</h2>
                     <p className="text-lg text-gray-700">${claimableBalance.toFixed(4)}</p>
                     <button
@@ -156,7 +155,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* My Public Key Section */}
-                <div className="mt-6 md:w-full rounded-lg bg-white p-6 shadow-md">
+                <div className="mt-6 rounded-lg bg-white p-6 shadow-md md:w-full">
                     <h2 className="text-xl font-semibold text-gray-800">My Public Key</h2>
                     <input
                         type="text"
@@ -181,7 +180,7 @@ export default function Dashboard() {
             </div>
 
             {/* Matches List */}
-            <div className="mt-6 md:w-full rounded-lg bg-white p-6 shadow-md">
+            <div className="mt-6 rounded-lg bg-white p-6 shadow-md md:w-full">
 
             <h2 className="mb-4 text-xl font-semibold text-gray-800">Match History</h2>
                 

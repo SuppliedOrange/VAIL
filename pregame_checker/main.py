@@ -14,16 +14,6 @@ import webbrowser
 import json
 import sys
 
-# Function to get the absolute path of a resource file
-def resource_path(relative_path):
-    # Get absolute path to resource, works for dev and for PyInstaller
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    except Exception:
-        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    return os.path.join(base_path, relative_path)
-
 # Global variables
 # Shared queue for inter-process communication
 queue = Queue()
@@ -34,14 +24,18 @@ server_endpoint = "http://95.154.228.111:3001/"
 username = None
 password = None
 
+gui_process = None
+tray_process = None
+app = None
+
 # Get the AppData directory path
 appdataPath = os.getenv('APPDATA')
 vailDir = os.path.join(appdataPath, "VAIL")
 filePath = os.path.join(vailDir, "vail.json")
 
-icon_path = resource_path("assets/vailIco.ico")
-github_icon = resource_path("assets/github.png")
-inf_icon = resource_path("assets/infIco.png")
+icon_path = "assets/vailIco.ico"
+github_icon = "assets/github.png"
+inf_icon = "assets/infIco.png"
 
 # Create the directory if it doesn't exist
 if not os.path.exists(vailDir):
@@ -262,11 +256,22 @@ def disableButton():
 
 
 def quit_app():
-    queue.put("quit")
+
     logging.debug("Quitting!")
+
     logging.debug("Quitting VAIL")
-    if 'app' in globals():
+
+    queue.put("quit")
+
+    if app:
         app.quit()
+
+    if gui_process:
+        gui_app.terminate()
+    
+    if tray_process:
+        tray_process.terminate()
+
     exit(0)
 
 
@@ -418,6 +423,7 @@ def login_logic(username, password, login_popup):
 
 
 def gui_app(queue):
+
     global app, statusLabel, gameStatusLabel, buttonLogout
     ctk.set_appearance_mode("dark")
 
@@ -646,6 +652,7 @@ def gui_app(queue):
                 update_status_label(False)
             elif message == "quit":
                 app.quit()
+                raise KeyboardInterrupt("Quit from tray")
         app.after(200, check_queue)
 
     check_queue()
@@ -752,6 +759,8 @@ def setup_tray_icon(queue):
     def quit_all(icon, item):
         queue.put("quit")
         icon.stop()
+        quit_app()
+        exit()
 
     icon = pystray.Icon("VAIL", icon_image, menu=pystray.Menu(
         pystray.MenuItem("Show", show_gui),
@@ -764,9 +773,7 @@ def setup_tray_icon(queue):
 
 
 def main():
-    gui_process = None
-    tray_process = None
-
+    
     def cleanup_processes():
         if tray_process and tray_process.is_alive():
             logging.debug("Cleaning up tray icon...")
@@ -781,18 +788,24 @@ def main():
             gui_process.join()
 
     try:
+
         initialize_json_file()
 
         if loginState() == 1:
+
             logging.debug("Login state is not 0, continuing...")
+
             while True:
+
                 logging.debug("Attempting to verify credentials...")
+
                 try:
                     verification_result = attempt_verifying_credentials()
                     
                     if verification_result == ConnectionError:
                         logging.debug("Connection error, unable to reach server")
-                        connectionErrorWindow()                    
+                        connectionErrorWindow()            
+
                     if verification_result:
                         logging.debug("Credentials verified, continuing...")
                         break
@@ -826,5 +839,11 @@ def main():
         logging.debug("Application shutdown complete")
 
 if __name__ == "__main__":
-    main()
+
+    #  If in pyinstaller executable, add freeze support.
     freeze_support()
+
+    # If in pyinstaller executable, navigate to the correct directory
+    if hasattr(sys, '_MEIPASS'): os.chdir(sys._MEIPASS)
+
+    main()

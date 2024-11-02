@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import verifyLocalCredentials from '../utility/verifyLocalCredentials';
+import verifyLocalCredentials from '../apiOperations/verifyLocalCredentials';
 
 interface HeaderProperties {
     title?: string;

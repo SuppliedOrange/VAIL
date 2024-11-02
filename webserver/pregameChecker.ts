@@ -409,11 +409,11 @@ async function rewardUser(username: string, reward: number, usersCollection: Col
 
     try {
 
-        // Add reward to current balance
+        // Add reward to claimable balance
 
         await usersCollection.updateOne(
             { username: username },
-            { $inc: { balance: reward } }
+            { $inc: { diamClaimable: reward } }
         );
 
         logger.info(`[rewardUser] Successfully rewarded user`);
