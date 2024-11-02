@@ -99,14 +99,14 @@ def writeAppState(arg):
         print(f"updated app state value to {arg}")
 
 def initialize_json_file():
-    """Initialize the JSON file with default values if it doesn't exist or is empty."""
+    # Initialize the JSON file with default values if it doesn't exist or is empty.
     if not os.path.exists(filePath) or os.path.getsize(filePath) == 0:
         with open(filePath, 'w') as f:
             json.dump({'loginState': 0, 'appState': 0}, f, indent=4)
         print(f"Initialized JSON file at {filePath}")
 
 def read_json_file():
-    """Read the JSON file and return the data."""
+    # Read the JSON file and return the data
     try:
         with open(filePath, 'r') as f:
             return json.load(f)
@@ -115,7 +115,7 @@ def read_json_file():
         return {'loginState': 0, 'appState': 0}
 
 def write_json_file(data):
-    """Write the data to the JSON file."""
+    # Write the data to the JSON file
     with open(filePath, 'w') as f:
         json.dump(data, f, indent=4)
         print(f"Successfully wrote data to {filePath}")
@@ -259,7 +259,6 @@ def gameStatus():
     app.after(5000, gameStatus) # runs this Fn again after n milliseconds
 
 def attempt_verifying_credentials():
-
     data = read_json_file()
 
     if 'username' not in data or 'password' not in data:
@@ -282,6 +281,8 @@ def attempt_verifying_credentials():
             return False
     except requests.exceptions.ConnectionError:
         print("Connection error. Unable to reach the server.")
+        errorLabel("Connection error. Unable to reach the server. Maybe check your internet?")
+        return ConnectionError
     except requests.exceptions.Timeout:
         print("Request timed out. The server may be unavailable.")
     except requests.exceptions.RequestException as e:
@@ -289,6 +290,7 @@ def attempt_verifying_credentials():
 
                              
 def attempt_logging_in(username, password, max_retries=4):
+    invalid_credentials = False
     for attempt in range(max_retries):
         try:
             print(f"Attempt {attempt + 1} of {max_retries}: Sending login request")
@@ -313,9 +315,9 @@ def attempt_logging_in(username, password, max_retries=4):
                     print(data)
                 else:
                     print("Username and password already exist in file")
-
                 write_json_file(data)
                 return True
+
             elif response.status_code == 400:
                 print("Invalid credentials")
                 invalid_credentials = True
@@ -337,11 +339,11 @@ def attempt_logging_in(username, password, max_retries=4):
         except requests.exceptions.RequestException as e:
             print(f"Attempt {attempt + 1} failed: {e}\nRetrying...")
             errorLabel(f"Attempt {attempt + 1} failed. Retrying...")
-            sleep(2)
+        sleep(2)
         
     if not invalid_credentials:
         print(f"Login failed after {max_retries} attempts")
-        errorLabel("Login failed after multiple attempts")
+        errorLabel(f"Login failed after {max_retries} attempts")
     return None
 
 def tell_server_pregame_is_detected(client: Client):
@@ -651,6 +653,75 @@ def gui_app(queue):
     app.mainloop()
 
 
+def connectionErrorWindow():
+    errorWindow = ctk.CTk()
+    errorWindow.title("Connection ERROR")
+    errorWindow_width = screenWidth // 3
+    errorWindow_height = screenHeight // 3
+    # calculate screen centre position
+    x = (screenWidth - errorWindow_width) // 2
+    y = (screenHeight - errorWindow_height) // 2
+    errorWindow.geometry(f'{errorWindow_width}x{errorWindow_height}+{x}+{y}')
+
+    connectionErrorLabel = ctk.CTkLabel(errorWindow, text='FAILED TO CONNECT TO THE SERVER\nPlease check your internet connection', text_color='red')
+    connectionErrorLabel.pack(pady=(100,40))
+
+    def start_countdown(seconds=10):  # 10 second countdown
+        def update_countdown():
+            nonlocal seconds
+            if seconds > 0:
+                connectionErrorLabel.configure(
+                    text=f'FAILED TO CONNECT TO THE SERVER\nRetrying in {seconds} seconds...',
+                    text_color='red'
+                )
+                seconds -= 1
+                errorWindow.countdown_id = errorWindow.after(1000, update_countdown)
+            else:
+                handleRetry()  # Auto-retry when countdown reaches 0
+                
+        update_countdown()
+
+
+    def handleRetry():
+        # Cancel any existing countdown
+        if hasattr(errorWindow, 'countdown_id'):
+            errorWindow.after_cancel(errorWindow.countdown_id)
+
+        retry_button.configure(state="disabled", text="Retrying...")
+        connectionErrorLabel.configure(text="Attempting to reconnect...")
+
+        def retryThread():
+            result = attempt_verifying_credentials()
+
+            if result == True:
+                errorWindow.after(0, lambda: on_success())
+            elif result == ConnectionError:
+                errorWindow.after(0, lambda: on_failure())
+            else:
+                errorWindow.after(0, lambda: on_failure())
+        
+        def on_success():
+            connectionErrorLabel.configure(text="Connection successful", text_color="green")
+            errorWindow.after(1000, errorWindow.destroy())
+
+        def on_failure():
+            start_countdown()
+            retry_button.configure(state="normal", text="Retry connection")
+
+        # start retry in bg using threadding
+        threading.Thread(target=retryThread, daemon=True).start()
+
+    retry_button = ctk.CTkButton(errorWindow, text="Retry connection", command=handleRetry)
+    retry_button.pack(pady=40)
+
+    def on_window_close():
+        print("Login cancelled")
+        errorWindow.destroy()
+        sys.exit(0)
+
+    errorWindow.protocol("WM_DELETE_WINDOW", on_window_close)
+    start_countdown()
+    errorWindow.mainloop()
 
 # Pystray System Tray Setup
 def setup_tray_icon(queue):
@@ -676,54 +747,73 @@ def setup_tray_icon(queue):
     icon.run()
 
 
-def show_gui():
+"""def show_gui():
     gui_process = Process(target=gui_app)
-    gui_process.start()
+    gui_process.start()"""
 
 
 def main():
-    initialize_json_file()
-    
-    if loginState() == 1:
+    gui_process = None
+    tray_process = None
 
-        print("Login state is not 0, continuing...")
-        while True:
-            print("Attempting to verify credentials...")
-            try:
-                if attempt_verifying_credentials():
-                    print("Credentials verified, continuing...")
-                    break
-                else:
+    def cleanup_processes():
+        if tray_process and tray_process.is_alive():
+            print("Cleaning up tray icon...")
+            # Send quit message to tray to remove icon
+            queue.put("quit")
+            tray_process.join(timeout=3)  # Wait up to 3 seconds
+            if tray_process.is_alive():
+                tray_process.terminate()
+
+        if gui_process and gui_process.is_alive():
+            print("Cleaning up GUI...")
+            gui_process.terminate()
+            gui_process.join()
+
+    try:
+        initialize_json_file()
+
+        if loginState() == 1:
+            print("Login state is not 0, continuing...")
+            while True:
+                print("Attempting to verify credentials...")
+                try:
+                    verification_result = attempt_verifying_credentials()
+                    
+                    if verification_result == ConnectionError:
+                        print("Connection error, unable to reach server")
+                        connectionErrorWindow()                    
+                    if verification_result:
+                        print("Credentials verified, continuing...")
+                        break
+                        
                     print("Credentials not verified, logging out...")
                     writeLoginState(0)
                     showLoginPopup()
-            except Exception as e:
-                print(f"An error occurred while verifying credentials: {e}")
-                sleep(2)  # Retry after a short delay
-                sleep(10) 
+                    
+                except Exception as e:
+                    print(f"An error occurred while verifying credentials: {e}")
+                    sleep(5)
 
+        else:
+            print("Login state is 0, showing login popup...")
+            showLoginPopup()
 
-    else:
-        print("Login state is 0, showing login popup...")
-        showLoginPopup()
+        gui_process = Process(target=gui_app, args=(queue,), name="GUI")
+        tray_process = Process(target=setup_tray_icon, args=(queue,), name="pysTray")
 
-    gui_process = Process(target=gui_app, args=(queue,), name="GUI")
-    tray_process = Process(target=setup_tray_icon, args=(queue,), name="pysTray")
-    try:
         gui_process.start()
         tray_process.start()
-    except Exception as e:
-        print(f"Failed to start processes: {e}")
-        sys.exit(1)
 
-    try:
-        tray_process.terminate()
-        tray_process.join()
+        gui_process.join()
+
     except KeyboardInterrupt:
-        print("Shutting down...")
+        print("\nReceived keyboard interrupt, shutting down")
+    except Exception as e:
+        print(f"Unexpected error occured: {e}")
     finally:
-        tray_process.terminate()
-        tray_process.join()
+        cleanup_processes()
+        print("Application shutdown complete")
 
 if __name__ == "__main__":
     main()
