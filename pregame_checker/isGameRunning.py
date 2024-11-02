@@ -20,7 +20,7 @@ with open(logPath, 'w'): pass
 def isRunning():
     for proc in psutil.process_iter(['name']):
         try:
-            if proc.info['name'].lower() == "valorant.exe":
+            if proc.info['name'].lower() == "valorant.exe" or proc.info['name'].lower() == "valorant-win64-shipping.exe":
                 print("valorant is running")
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -64,17 +64,17 @@ def create_client():
 
     try:
         region = get_region()
+        print(region)
         if not region: raise Exception("Could not determine region")
     except Exception as e:
         print(e)
     
-    client = Client(region=region)
     try:
+        client = Client(region=region)
         client.activate()
-    except:
+    except Exception as e:
         logging.error("VALORANT isn't running")
-        print("VALORANT isn't running")
-        return None
+        print(e)
 
     return client 
 
