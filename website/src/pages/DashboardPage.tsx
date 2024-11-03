@@ -6,6 +6,8 @@ import verifyLocalCredentials from "../apiOperations/verifyLocalCredentials";
 import getMatchesForUser from "../apiOperations/getMatchesForUser";
 import { PregameMatch } from "../types/PregameMatch";
 import { ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import agentNames from "../resources/agentNames";
+import rewardUser from "../apiOperations/rewardUser";
 
 export default function Dashboard() {
     const [claimableBalance, setClaimableBalance] = useState(0);
@@ -93,15 +95,96 @@ export default function Dashboard() {
         setPage(prev => prev + 1);
       };
 
+    function tryFindingLockedAgent( match: PregameMatch ) {
+
+        // Find all checks that were successful
+        const successfulChecks = match.checkResults.filter(check => check.success);
+        if (!successfulChecks.length) return false;
+
+        // Find the last successful check
+        const lastCheck = successfulChecks[successfulChecks.length - 1];
+        
+        // Find the agent that was locked
+        // Find the player object
+
+        const teams = lastCheck.result.Teams as unknown[];
+        if (!teams.length) return false;
+
+        // There are two teams, find the team where teams.team.Players[x].Subject === match.playerID
+        for (const team of teams) {
+
+            const teamPlayers = (team as { Players: { Subject: string, CharacterID: string }[] }).Players;
+            if (!teamPlayers.length) continue;
+
+            const player = teamPlayers.find((player: { Subject: string, CharacterID: string }) => player.Subject === match.playerID);
+            
+            if (player) {
+                const lockedCharacter = player.CharacterID;
+                const agentName = agentNames[lockedCharacter] || false;
+                return agentName;
+            }
+
+        }
+
+        return false;
+        
+    }
+
+    function tryFindingMatchType( match: PregameMatch ) {
+        
+        // Find all checks that were successful
+        const successfulChecks = match.checkResults.filter(check => check.success);
+        if (!successfulChecks.length) return false;
+
+        // Find the first successful check
+        const lastCheck = successfulChecks[0];
+
+        // Find the match type
+        const queueID = lastCheck.result.QueueID as string;
+        if (!queueID || queueID === "null") return false;
+
+        // Capitalize the queue ID
+        const matchType = queueID.charAt(0).toUpperCase() + queueID.slice(1).toLowerCase();
+
+        return matchType;
+    }
+
+    function tryFindingMatchMap( match: PregameMatch ) {
+
+        // Find all checks that were successful
+        const successfulChecks = match.checkResults.filter(check => check.success);
+        if (!successfulChecks.length) return false;
+
+        // Find the first successful check
+        const lastCheck = successfulChecks[0];
+
+        // Find the map ID
+        const mapID = lastCheck.result.MapID as string;
+        // Check if MapID is in the pattern of "/Game/Maps/<mapName>/<mapName>"
+        if (!mapID || !mapID.startsWith("/Game/Maps/")) return false;
+        if (mapID.split("/").length < 4) return false;
+
+        // Extract the map name
+        const mapName = mapID.split("/")[3];
+        return mapName
+        
+    }
+
     async function handleClaimBalance() {
         try {
-            const tryOperation = await axios.post(import.meta.env.VITE_WEBSERVER_ENDPOINT + "/reward-user", { toUser: localStorage.getItem("username") });
+            const tryOperation = await rewardUser(localStorage.getItem("username") as string);
+
+            if (tryOperation.error) {
+                setToastMessage(tryOperation.error);
+                return;
+            }
+
             // See if operation returned 200
             if (tryOperation.status !== 200) {
                 setToastMessage(`[${tryOperation.status}] ${tryOperation.statusText}`);
                 return;
             }
-            setClaimableBalance(0);
+            setClaimableBalance(0); 
         } catch (error) {
 
             if (axios.isAxiosError(error) && error.response && error.response.data.error) {
@@ -198,7 +281,7 @@ export default function Dashboard() {
 
                         <div className="flex items-center space-x-2">
 
-                            <span className="font-medium">{match.username}</span>
+                            <span className="font-medium">{tryFindingLockedAgent(match) || "Unknown"}</span>
 
                             <span className="text-sm text-gray-500">
                                 {formatDate(match.time)}
@@ -233,45 +316,53 @@ export default function Dashboard() {
 
                     </div>
 
-                    {/* Expanded Details */}
-
-                    {expandedMatch === match.matchID && (
-
-                    <div className="mt-4 space-y-3 border-t pt-3">
-
-                        <div className="flex justify-between text-sm text-gray-600">
-                        <span>Times Checked: {match.timesChecked}</span>
-                        <span>Errors: {match.timesErrorOccurred}</span>
-
-                    </div>
-                        
-                        {/* Check Results */}
-                        <div className="space-y-2">
-                        <h4 className="text-sm font-medium">Check Results:</h4>
-                        <div className="max-h-40 overflow-y-auto">
-
-                            {match.checkResults.map((check, index) => (
-                            <div 
-                                key={index}
-                                className={`rounded p-2 text-sm ${
-                                check.success ? 'bg-green-50' : 'bg-red-50'
-                                }`}
-                            >
-                                <div className="flex items-center space-x-2">
-
-                                {!check.success && (
-                                    <AlertCircle className="size-4 text-red-500" />
-                                )}
-
-                                <span>{formatDate(check.time)}</span>
-
+                        {/* Enhanced Expanded Details */}
+                        {expandedMatch === match.matchID && (
+                            <div className="mt-4 space-y-3 border-t pt-3">
+                                {/* Match Details Grid */}
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <h4 className="text-sm font-medium text-gray-700">Match Details</h4>
+                                        <div className="space-y-1 text-sm text-gray-600">
+                                            <p>Map: {tryFindingMatchMap(match) || "Unknown"}</p>
+                                            <p>Match Type: {tryFindingMatchType(match) || "Unknown"}</p>
+                                            <p className="font-mono text-xs">Match ID: {match.matchID}</p>
+                                            <p className="font-mono text-xs">Player ID: {match.playerID}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h4 className="text-sm font-medium text-gray-700">Statistics</h4>
+                                        <div className="space-y-1 text-sm text-gray-600">
+                                            <p>Times Checked: {match.timesChecked}</p>
+                                            <p>Errors: {match.timesErrorOccurred}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Check Results */}
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-gray-700">Check Results:</h4>
+                                    <div className="max-h-40 overflow-y-auto">
+                                        {match.checkResults.map((check, index) => (
+                                            <div 
+                                                key={index}
+                                                className={`rounded p-2 text-sm ${
+                                                    check.success ? 'bg-green-50' : 'bg-red-50'
+                                                }`}
+                                            >
+                                                <div className="flex items-center space-x-2">
+                                                    {!check.success && (
+                                                        <AlertCircle className="size-4 text-red-500" />
+                                                    )}
+                                                    <span>{formatDate(check.time)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            ))}
-                        </div>
-                        </div>
-                    </div>
-                    )}
+                        )}
+
                 </div>
                 ))}
             </div>

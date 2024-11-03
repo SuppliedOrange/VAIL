@@ -33,7 +33,7 @@ export default function Lander () {
                     </div>
                     <div className="mt-3 sm:ml-3 sm:mt-0">
                         <a
-                            href="#"
+                            href="/download"
                             className={`flex w-full items-center justify-center rounded-md border border-transparent px-8 py-3 text-base font-medium md:px-10 md:py-4 md:text-lg`}
                         >
                             <svg className="mx-2 size-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">

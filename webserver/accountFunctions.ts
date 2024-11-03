@@ -449,7 +449,8 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
         const account = await server.loadAccount(adminPublicKey);
 
         const transaction = new TransactionBuilder(account, {
-            fee: (await server.fetchBaseFee()).toString(),
+            // Fee is 100 jots I believe.
+            fee: (await server.fetchBaseFee()).toString() || (0.0000001 * 100).toString(),
             networkPassphrase: networkPassphrase,
         })
         .addOperation(Operation.payment({
@@ -460,7 +461,7 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
         .setTimeout(30)
         .build();
 
-        transaction.sign(adminKeypair)
+        transaction.sign(adminKeypair);
         
         const result = await testnet_server_horizon.submitTransaction(transaction);
 
@@ -490,6 +491,11 @@ export async function transferFromAdminTo(toUser: User, usersCollection: Collect
 
         if (e instanceof errors.BaseError) {
             throw e;
+        }
+
+        if (e.response && e.response.data) {
+            console.log(e.response.data.extras.result_codes);
+            throw new errors.ThirdPartyError(e, e.response.data.detail);
         }
 
         console.error('Error in transfer-from-admin-to:', e);

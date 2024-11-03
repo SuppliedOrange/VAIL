@@ -74,8 +74,8 @@ export default function Header(properties: HeaderProperties) {
                             </>
                         )}
                         <li>
-                            <a href="#" className="block rounded px-3 py-2 text-gray-900 hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent md:hover:text-red-700 dark:text-white dark:hover:bg-gray-700 md:dark:hover:bg-transparent md:dark:hover:text-red-500">
-                                About
+                            <a href="https://github.com/SuppliedOrange/VAIL" className="block rounded px-3 py-2 text-gray-900 hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent md:hover:text-red-700 dark:text-white dark:hover:bg-gray-700 md:dark:hover:bg-transparent md:dark:hover:text-red-500">
+                                Github
                             </a>
                         </li>
                         <li>

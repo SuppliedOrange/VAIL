@@ -98,10 +98,11 @@ app.post('/verify-authentication', async function (req, res) {
     }
 
     const { username, accessToken } = req.body;
+    const lowerCaseUsername = username.toLowerCase();
 
     try {
         const details = await accountFunctions.verifyAuthentication({
-            username,
+            username: lowerCaseUsername,
             encoded_password: accessToken
         }, usersCollection);
 
@@ -131,10 +132,11 @@ app.post('/check-pregame', async function (req, res) {
     }
 
     const { username, accessToken, endpoint, clientPlatform, clientVersion, entitlementsJWT, authToken, matchID, playerID } = req.body;
+    const lowerCaseUsername = username.toLowerCase();
 
     try {
 
-        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
+        await accountFunctions.verifyAuthentication({ username: lowerCaseUsername, encoded_password: accessToken }, usersCollection);
 
     } catch (error) {
 
@@ -157,7 +159,7 @@ app.post('/check-pregame', async function (req, res) {
         return;
     }
 
-    const match = await pregameMatchesCollection.findOne({ matchID, username });
+    const match = await pregameMatchesCollection.findOne({ matchID, lowerCaseUsername });
 
     if (match) {
         res.status(400).send({ error: "Match already checked" });
@@ -172,7 +174,7 @@ app.post('/check-pregame', async function (req, res) {
             clientVersion,
             entitlementsJWT,
             authorization: authToken,
-            username,
+            username: lowerCaseUsername,
             matchID,
             playerID,
             usersCollection,
@@ -196,10 +198,11 @@ app.post('/login', async function (req, res) {
     }
 
     const { username, password } = req.body;
-    const encoded_password = sha256(username + password);
+    const lowerCaseUsername = username.toLowerCase();
+    const encoded_password = sha256(lowerCaseUsername + password);
 
     try {
-        const accountDetails = await accountFunctions.loginAccount({ username, encoded_password }, usersCollection);
+        const accountDetails = await accountFunctions.loginAccount({ username: lowerCaseUsername, encoded_password }, usersCollection);
         res.status(200).send(accountDetails);
     } catch (e) {
         logger.error('Error in login', { error: e });
@@ -225,10 +228,11 @@ app.get('/get-balance', async function (req, res) {
     }
 
     const { username, accessToken } = req.body;
+    const lowerCaseUsername = username.toLowerCase();
 
     try {
 
-        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
+        await accountFunctions.verifyAuthentication({ username: lowerCaseUsername, encoded_password: accessToken }, usersCollection);
 
     } catch (error) {
 
@@ -251,7 +255,7 @@ app.get('/get-balance', async function (req, res) {
 
     try {
 
-        const user = await usersCollection.findOne<User>({ username });
+        const user = await usersCollection.findOne<User>({ username: lowerCaseUsername });
 
         if (!user) {
             return res.status(404).send({ error: "User not found" });
@@ -321,10 +325,11 @@ app.post('/get-matches-for-user', async function (req, res) {
     }
 
     const { username, accessToken } = req.body;
+    const lowerCaseUsername = username.toLowerCase();
 
     try {
 
-        await accountFunctions.verifyAuthentication({ username, encoded_password: accessToken }, usersCollection);
+        await accountFunctions.verifyAuthentication({ username: lowerCaseUsername, encoded_password: accessToken }, usersCollection);
 
     } catch (error) {
 
@@ -347,7 +352,7 @@ app.post('/get-matches-for-user', async function (req, res) {
 
     try {
 
-        const matches = await pregameMatchesCollection.find<PregameMatch>({ username }).toArray();
+        const matches = await pregameMatchesCollection.find<PregameMatch>({ username: lowerCaseUsername }).toArray();
         return res.status(200).send({ matches: matches });
 
     } catch (error) {
@@ -363,6 +368,7 @@ app.post('/reward-user', async function (req, res) {
     logger.info('Received request to reward user', { endpoint: '/reward-user', body: req.body });
 
     const { toUser: toUsername } = req.body;
+    const lowerCaseUsername = toUsername.toLowerCase();
 
     if (!toUsername) {
         res.status(400).send({ error: "Malformed request" });
@@ -370,7 +376,7 @@ app.post('/reward-user', async function (req, res) {
     }
 
     try {
-        const toUser = await usersCollection.findOne<User>({ username: toUsername });
+        const toUser = await usersCollection.findOne<User>({ username: lowerCaseUsername });
         if (!toUser) {
             res.status(404).send({ error: "User not found" });
             return;

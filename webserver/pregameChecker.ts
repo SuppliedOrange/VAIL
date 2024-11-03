@@ -54,11 +54,11 @@ async function fetchPregameMatch(
         logger.debug(`[fetchPregameMatch] Queue ID: ${response.data?.QueueID}`);
 
         if (
-            response.data?.QueueID != "unrated" && response.data?.QueueID != "competitive" 
-            && response.data?.ProvisioningFlowID != "CustomGame" // If testing
+            !response.data.QueueID || response.data.QueueID == "null" || response.data.QueueID == "response"
+            // && response.data?.ProvisioningFlowID != "CustomGame" // If testing
         ) {
             logger.warn(`[fetchPregameMatch] Invalid queue type: ${response.data?.QueueID}`);
-            throw new errors.UserError(null, "The player is not in a competitive/unrated match");
+            throw new errors.UserError(null, "The player is not in a match that can be analyzed (probably custom or something)");
         }
 
         logger.info(`[fetchPregameMatch] Successfully retrieved pregame match data`);
@@ -113,6 +113,7 @@ export default async function analyzePregame(properties: pregameProperties) {
     let pregameMatchLog: PregameMatch = {
         username: username,
         matchID: matchID,
+        playerID: playerID,
         time: Date.now(),
         didInstalock: "Undetermined (Did not check)",
         netReward: 0,
@@ -131,7 +132,9 @@ export default async function analyzePregame(properties: pregameProperties) {
     }
 
     logger.info(`[analyzePregame] Starting main analysis loop`);
+
     while (continueIterations) {
+
         if (pregameMatchLog.timesErrorOccurred >= maxRetryLimit) {
             logger.warn(`[analyzePregame] Reached max retry limit (${maxRetryLimit}), stopping analysis`);
             continueIterations = false;
@@ -168,6 +171,7 @@ export default async function analyzePregame(properties: pregameProperties) {
         }
 
         catch (error) {
+
             if (error instanceof errors.NotInPregameError) {
                 logger.info(`[analyzePregame] Pregame phase ended, finalizing analysis`);
                 continueIterations = false;
@@ -331,6 +335,7 @@ function checkIfLockedInEarly(results: PregameMatchCheckResult[], playerID: stri
     }
 
     const firstLockedInResult = lockedInResults[0];
+
     logger.debug(`[checkIfLockedInEarly] First locked result time remaining: ${firstLockedInResult.result.PhaseTimeRemainingNS}`);
     
     if (firstLockedInResult.result.PhaseTimeRemainingNS > 30000000000) {

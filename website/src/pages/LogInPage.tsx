@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import axios from "axios";
@@ -10,9 +10,13 @@ export default function Login() {
     const [error, setError] = useState(""); // State to handle server errors
     const [showTooltip, setShowTooltip] = useState(false); // State to handle tooltip visibility
 
-    verifyLocalCredentials().then((isLoggedIn) => {
-        if (isLoggedIn) { window.location.href = "/dashboard"; }
-    });
+    useEffect(() => {
+        verifyLocalCredentials().then((isLoggedIn) => {
+            if (isLoggedIn) {
+                window.location.href = "/dashboard";
+            }
+        });
+    }, []);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

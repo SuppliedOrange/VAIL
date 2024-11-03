@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import axios from "axios";
@@ -13,9 +13,13 @@ export default function Signup() {
     const [confirmPasswordError, setConfirmPasswordError] = useState("");
     const [error, setError] = useState(""); // State to handle server errors
 
-    verifyLocalCredentials().then((isLoggedIn) => {
-        if (isLoggedIn) { window.location.href = "/dashboard"; }
-    });
+    useEffect(() => {
+        verifyLocalCredentials().then((isLoggedIn) => {
+            if (isLoggedIn) {
+                window.location.href = "/dashboard";
+            }
+        });
+    }, []);
 
     function handleConfirmPasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
         const newConfirmPassword = e.target.value;

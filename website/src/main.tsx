@@ -7,7 +7,8 @@ import LanderPage from "./pages/LanderPage.tsx";
 import Signup from "./pages/SignUpPage.tsx";
 import Login from "./pages/LogInPage.tsx";
 import Logout from "./pages/LogOutPage.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
+import Dashboard from "./pages/DashboardPage.tsx";
+import Download from "./pages/DownloadPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
     {
         path: "/dashboard",
         element: <Dashboard />
+    },
+    {
+        path: "/download",
+        element: <Download />
     }
 ])
 

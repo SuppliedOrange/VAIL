@@ -150,7 +150,6 @@ def errorLabel(message):
         if 'login_window' in globals():
             login_window.after(0, lambda: error_label.configure(text=message, text_color="red"))
 
-
 def showLoginPopup():
     global username, password, error_label, login_window
 
