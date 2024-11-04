@@ -29,7 +29,7 @@ export default function Download() {
 
     return (
         <>
-            <Header />
+            <Header title="VAIL"/>
             <div className="mt-16 flex w-full flex-col items-center px-4 sm:mt-24">
                 <h1 className="text-center text-2xl font-semibold tracking-tight text-gray-900 sm:text-2xl md:text-4xl">
                     <span className="block">Get our official Instalock Monitor</span>

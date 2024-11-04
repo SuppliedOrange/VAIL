@@ -4,7 +4,7 @@ export default function Tutorial() {
     const steps = [
         {
             title: "Sign Up",
-            description: "Create your account to start earning DIAM tokens. Link your VALORANT account and set up your wallet in minutes.",
+            description: "Sign up for an account! It takes seconds.",
             imageUrl: "./water-puddle-2.png",
             tip: "Currently, public keys are auto-assigned since all accounts are on the testnet. The mainnet version is functional on the backend, but is unpublished"
         },
@@ -30,7 +30,7 @@ export default function Tutorial() {
         },
         {
             title: "Claim Your Rewards",
-            description: "Visit your dashboard to see your earned DIAM tokens. Claim rewards for games where you demonstrated team-first behavior.",
+            description: "Visit your dashboard to see your earned DIAM tokens. Make sure you enter a valid public key to transfer the tokens to. Claim rewards for games where you demonstrated team-first behavior.",
             imageUrl: "./claimguide.png",
             tip: "Transactions are currently only on the testnet, so they may hit undocumented errors. Don't stress if your redeem fails!"
         },
