@@ -24,8 +24,8 @@ The actual application that sits on the user's computer to monitor and analyze t
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SuppliedOrange"><img src="https://avatars.githubusercontent.com/u/70258998?v=4" width="100rem;" alt="SuppliedOrange"/><br /><sub><b>SuppliedOrange</b></sub></a><br/></td>
-        <td align="center" valign="top" width="14.28%">
+      <td align="center" valign="top"><a href="https://github.com/SuppliedOrange"><img src="https://avatars.githubusercontent.com/u/70258998?v=4" width="100rem;" alt="SuppliedOrange"/><br /><sub><b>SuppliedOrange</b></sub></a><br/></td>
+        <td align="center" valign="top">
         <a href="https://github.com/Incognitux"><img src="https://avatars.githubusercontent.com/u/74859056?v=4" width="100rem;" alt="Incognitux"/><br /><sub><b>Incognitux</b></sub></a><br/>
         </td>
     </tbody>
