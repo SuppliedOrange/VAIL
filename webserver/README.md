@@ -1,7 +1,9 @@
 # VAIL webserver
 
 ## Running the webserver
-Use `npx tsx index.ts` (npx comes bundled with npm)
+Run `npx tsx index.ts`
+
+(npx comes bundled with npm, it's not an external dependency)
 
 ## Modify .env values
 ```
