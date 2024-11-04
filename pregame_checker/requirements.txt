@@ -5,3 +5,4 @@ pystray
 pillow
 screeninfo
 psutil
+pyinstaller
