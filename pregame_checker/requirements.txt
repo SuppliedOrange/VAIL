@@ -1,0 +1,7 @@
+customtkinter
+requests
+valclient
+pystray
+pillow
+screeninfo
+psutil
