@@ -1,6 +1,6 @@
 <div align="center">
     <br />
-    <img src="assets/vailIco.png" width="80"/>
+    <img src="assets/logo.svg" width="80"/>
     <h1>Repo for VAIL</h1>
     <h3>Valorant Anti-InstaLock</h3>
 </div>
