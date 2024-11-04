@@ -77,6 +77,21 @@ export async function createAccount(properties: Omit<User, "public_key" | "priva
             const public_key = keypair.publicKey();
             const private_key = keypair.secret();
 
+            // Fund the account with friendbot so that it exists on the ledger!
+            try {
+                const attemptFund = await fundWithFriendbot(public_key);
+            }
+            catch (error) {
+                
+                if (error instanceof errors.BaseError) {
+                    throw error;
+                }
+                else {
+                    throw new errors.InternalServerError(null, `Error while funding account: ${error}`);
+                }
+                
+            }
+
             user.public_key = public_key;
             user.private_key = private_key;
 
@@ -89,7 +104,7 @@ export async function createAccount(properties: Omit<User, "public_key" | "priva
             username: user.username,
             email: user.email,
             accessToken: user.encoded_password,
-            public_key: user.public_key || "", // We'll make people bring in their own public keys?
+            public_key: user.public_key || "", // We'll make people bring in their own public keys for mainnet?
         }
 
     }
@@ -224,9 +239,11 @@ export async function checkAdmin(usersCollection: Collection<Document>, sharePri
 
                 if (!accountDetails || 'error' in accountDetails) {
                     if (accountDetails.error.includes("NO_BAL_ERROR")) {
-                        const attemptFund = await fundWithFriendbot(adminAccount.public_key);
-                        if (attemptFund.error) {
-                            throw new errors.InternalServerError(null, `Error while funding account: ${attemptFund.error}`);
+                        try {
+                            const attemptFund = await fundWithFriendbot(adminAccount.public_key);
+                        }
+                        catch (error) {
+                            throw new errors.InternalServerError(null, `Error while funding account: ${error}`);
                         }
                     }
                     throw new errors.InternalServerError(null, `Error while loading account details: ${accountDetails.error}`);
@@ -340,7 +357,7 @@ export async function fundWithFriendbot(publicKey: string, mode: "testnet" | "ma
     try {
 
         if (mode !== "testnet") {
-            throw new Error("Friendbot is only available on the testnet.");
+            throw new errors.UserError(null, "Friendbot is only available on the testnet.");
         }
 
         console.log(`Received request to fund account ${publicKey}`);
@@ -349,7 +366,7 @@ export async function fundWithFriendbot(publicKey: string, mode: "testnet" | "ma
         const response = await fetch(`https://friendbot.diamcircle.io/?addr=${publicKey}`);
 
         if (!response.ok) {
-            throw new Error(`Failed to activate account ${publicKey}: ${response.statusText}`);
+            throw new errors.ThirdPartyError(`Failed to activate account ${publicKey}: ${response.statusText}`);
         }
         
         const result = await response.json();
@@ -359,8 +376,13 @@ export async function fundWithFriendbot(publicKey: string, mode: "testnet" | "ma
 
     } catch (error) {
 
-        console.error('Error in fund-account:', error);
-        return {"error": error.message};
+        if (error instanceof errors.BaseError) {
+            throw error;
+        }
+
+        else {
+            throw new errors.InternalServerError(error, "Error while funding account.");
+        }
 
     }
 
