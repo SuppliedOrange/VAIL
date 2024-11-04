@@ -1,6 +1,6 @@
 # VAIL Desktop Application
 
-## Installaing dependencies
+## Installing dependencies
 
 Run `python -m pip -r requirements.txt` to install all required modules.
 
