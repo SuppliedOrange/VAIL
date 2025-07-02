@@ -29,6 +29,27 @@ export default function Footer() {
                     </div>
                 </div>
 
+                {/* Scam notification */}
+                <div className="mt-8 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="text-center">
+                        <h3 className="text-lg font-semibold text-red-800">
+                            Diamante scammed us, and I don't blame them.
+                        </h3>
+                        <p className="mt-2 text-sm text-red-700">
+                            Do you wanna read about why this website went to waste and my opinions on it?
+                        </p>
+                        <a 
+                            href="/scam" 
+                            className="mt-3 inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+                        >
+                            Read More
+                            <svg className="ml-2 size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
                 <div className="mt-12 grid grid-cols-2 gap-8 xl:grid-cols-4">
                     <div className="md:grid md:grid-cols-2 md:gap-8">
                         <div>

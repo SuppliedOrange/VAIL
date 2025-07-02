@@ -23,7 +23,9 @@ dotenv.load_dotenv("../website/.env")
 queue = Queue()
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
-server_endpoint = os.getenv('VITE_WEBSERVER_ENDPOINT', 'http://localhost:3001')
+# server_endpoint = os.getenv('VITE_WEBSERVER_ENDPOINT', 'http://localhost:3001')
+# man whatever, screw this
+server_endpoint = "https://vail-nu.vercel.app/api"
 
 username = None
 password = None

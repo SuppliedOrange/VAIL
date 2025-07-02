@@ -8,6 +8,7 @@ import Login from "./pages/LogInPage.tsx";
 import Logout from "./pages/LogOutPage.tsx";
 import Dashboard from "./pages/DashboardPage.tsx";
 import Download from "./pages/DownloadPage.tsx";
+import ScamPage from "./pages/ScamPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
     {
         path: "/download",
         element: <Download />
+    },
+    {
+        path: "/scam",
+        element: <ScamPage />
     }
 ])
 
