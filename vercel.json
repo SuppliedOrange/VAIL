@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "webserver/index.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "website/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "routes": [
+    { 
+      "src": "/api/(create-account|verify-authentication|check-pregame|login|get-balance|check-admin-account|get-matches-for-user|reward-user)", 
+      "dest": "/webserver/index.ts" 
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/website/static/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/website/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
+      "dest": "/website/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/website/index.html"
+    }
+  ]
+}

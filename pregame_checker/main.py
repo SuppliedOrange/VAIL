@@ -13,13 +13,17 @@ from screeninfo import get_monitors
 import webbrowser
 import json
 import sys
+import dotenv
+
+# Load environment variables from .env file
+dotenv.load_dotenv("../website/.env")
 
 # Global variables
 # Shared queue for inter-process communication
 queue = Queue()
 screenWidth = get_monitors()[0].width
 screenHeight = get_monitors()[0].height
-server_endpoint = "http://95.154.228.111:3001/"
+server_endpoint = os.getenv('VITE_WEBSERVER_ENDPOINT', 'http://localhost:3001')
 
 username = None
 password = None

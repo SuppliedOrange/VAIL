@@ -10,9 +10,11 @@ import analyzePregame from './pregameChecker';
 import User from './User';
 import winston from 'winston';
 import { PregameMatch } from './PregameMatch';
+import path from 'path';
 
-// Configure dotenv
-configDotenv({ path: ".env" });
+// Configure dotenv with correct path
+const envPath = path.join(__dirname, '.env');
+configDotenv({ path: envPath });
 
 // Configure winston
 const logger = winston.createLogger({
@@ -44,9 +46,9 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // @ts-expect-error unsure why this happens
-app.post('/create-account', async function (req, res) {
+app.post('/api/create-account', async function (req, res) {
 
-    logger.info('Received request to create an account', { endpoint: '/create-account', body: req.body });
+    logger.info('Received request to create an account', { endpoint: '/api/create-account', body: req.body });
 
     if (!req.body.username || !req.body.password || !req.body.email || !req.body.type) {
         res.status(400);
@@ -88,9 +90,9 @@ app.post('/create-account', async function (req, res) {
     }
 });
 
-app.post('/verify-authentication', async function (req, res) {
+app.post('/api/verify-authentication', async function (req, res) {
 
-    logger.info('Received request to verify authentication', { endpoint: '/verify-authentication', body: req.body });
+    logger.info('Received request to verify authentication', { endpoint: '/api/verify-authentication', body: req.body });
 
     if (!req.body.username || !req.body.accessToken) {
         res.status(400).send({ error: "Malformed request" });
@@ -122,9 +124,9 @@ app.post('/verify-authentication', async function (req, res) {
     }
 });
 
-app.post('/check-pregame', async function (req, res) {
+app.post('/api/check-pregame', async function (req, res) {
 
-    logger.info('Received request to check pregame', { endpoint: '/check-pregame', body: req.body });
+    logger.info('Received request to check pregame', { endpoint: '/api/check-pregame', body: req.body });
 
     if (!req.body.username || !req.body.accessToken) {
         res.status(400).send({ error: "Malformed request\nRequired properties: username, accessToken" });
@@ -189,8 +191,8 @@ app.post('/check-pregame', async function (req, res) {
     }
 });
 
-app.post('/login', async function (req, res) {
-    logger.info('Received request for login', { endpoint: '/login', body: req.body });
+app.post('/api/login', async function (req, res) {
+    logger.info('Received request for login', { endpoint: '/api/login', body: req.body });
 
     if (!req.body.username || !req.body.password) {
         res.status(400).send({ error: "Malformed request" });
@@ -218,9 +220,9 @@ app.post('/login', async function (req, res) {
 });
 
 // @ts-expect-error unsure why this happens
-app.get('/get-balance', async function (req, res) {
+app.get('/api/get-balance', async function (req, res) {
 
-    logger.info('Received request to get balance', { endpoint: '/get-balance' });
+    logger.info('Received request to get balance', { endpoint: '/api/get-balance' });
 
     if (!req.body.username || !req.body.accessToken) {
         res.status(400).send({ error: "Malformed request" });
@@ -291,8 +293,8 @@ app.get('/get-balance', async function (req, res) {
 
 });
 
-app.get('/check-admin-account', async function (req, res) {
-    logger.info('Received request to check admin account', { endpoint: '/check-admin-account' });
+app.get('/api/check-admin-account', async function (req, res) {
+    logger.info('Received request to check admin account', { endpoint: '/api/check-admin-account' });
 
     try {
 
@@ -318,7 +320,7 @@ app.get('/check-admin-account', async function (req, res) {
 // @ts-expect-error unsure why this happens
 app.post('/get-matches-for-user', async function (req, res) {
 
-    logger.info('Received request to get matches for user', { endpoint: '/get-matches-for-user', body: req.body });
+    logger.info('Received request to get matches for user', { endpoint: '/api/get-matches-for-user', body: req.body });
 
     if (!req.body.username || !req.body.accessToken) {
         return res.status(400).send({ error: "Malformed request" });
@@ -364,8 +366,8 @@ app.post('/get-matches-for-user', async function (req, res) {
 
 });
 
-app.post('/reward-user', async function (req, res) {
-    logger.info('Received request to reward user', { endpoint: '/reward-user', body: req.body });
+app.post('/api/reward-user', async function (req, res) {
+    logger.info('Received request to reward user', { endpoint: '/api/reward-user', body: req.body });
 
     const { toUser: toUsername } = req.body;
     const lowerCaseUsername = toUsername.toLowerCase();
@@ -403,6 +405,18 @@ app.post('/reward-user', async function (req, res) {
     }
 });
 
-app.listen(port, () => {
-    logger.info(`VAIL webserver listening at http://localhost:${port}`);
+// Catch-all route for undefined endpoints
+app.use('*', (req, res) => {
+    logger.warn(`Undefined route accessed: ${req.method} ${req.originalUrl}`);
+    res.status(404).send({ error: "Endpoint not found" });
 });
+
+// For Vercel serverless deployment
+export default app;
+
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        logger.info(`VAIL webserver listening at http://localhost:${port}`);
+    });
+}

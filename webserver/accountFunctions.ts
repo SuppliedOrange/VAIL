@@ -361,8 +361,7 @@ export async function fundWithFriendbot(publicKey: string, mode: "testnet" | "ma
         }
 
         console.log(`Received request to fund account ${publicKey}`);
-
-        const fetch = await import('node-fetch').then(mod => mod.default);
+        
         const response = await fetch(`https://friendbot.diamcircle.io/?addr=${publicKey}`);
 
         if (!response.ok) {

@@ -8,6 +8,9 @@ interface BaseErrorConstructor {
 export class BaseError extends Error {
 
     errorCode: number;
+    cause: unknown;
+    name: string;
+    message: string;
 
     constructor(properties: BaseErrorConstructor) {
 
