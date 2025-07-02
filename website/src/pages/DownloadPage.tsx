@@ -18,7 +18,7 @@ export default function Download() {
 
     const handleDownload = () => {
         setDownloadStarted(true);
-        const downloadUrl = `https://github.com/SuppliedOrange/VAIL/releases/download/v.1.0.1/VAIL.exe`;
+        const downloadUrl = `https://github.com/SuppliedOrange/VAIL/releases/download/v1.0.1/VAIL.exe`;
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.download = fileName;
